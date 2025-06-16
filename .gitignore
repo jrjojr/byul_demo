@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+*.log
+
+# Qt UI
+*.qrc
+*.ui
+
+# C build artifacts
+*.o
+*.out
+*.so
+build/
+dist/
+*.dll
+*.exe
+*.a
+*.dylib
+
+# macOS / Linux / Windows trash
+.DS_Store
+Thumbs.db
+
+# 환경 파일 (선택적)
+.env
+*.env
+secrets.txt
+
+# vscode 환경 폴더
+.vscode/
+.venv/
