@@ -40,14 +40,36 @@
 
 ## 🧩 구조 요약
 
-GridViewer (QMainWindow)
-├── GridCanvas (중앙 맵 표시 및 클릭 이벤트)
-│ └── MouseInputHandler (마우스 처리: 클릭, 드래그 등)
-├── GridMap (셀 상태 및 지형 제어)
-├── NPC (c_dstar_lite 기반 경로탐색)
-├── BottomDockingPanel (로그 및 루프 시간 그래프)
-└── ToolbarPanel / MenuBar (모드 전환 및 기능 호출)
+GridViewer
+ 메인 윈도우. 전체 UI의 상위 컨테이너 역할.
 
+GridCanvas
+ 중앙에 표시되는 셀 맵 영역.
+ - 마우스 입력 처리 (선택, 드래그 등)
+ - NPC 위치 및 경로 시각화
+
+MouseInputHandler
+ GridCanvas 내부에서 마우스 이벤트만 별도로 처리.
+
+GridMap
+ 셀의 상태를 저장하고 지형을 관리하는 핵심 데이터 구조.
+ - 셀 로딩 / 언로딩
+ - 장애물 토글 등
+
+NPC
+ 각 NPC는 C 구조체 c_dstar_lite를 기반으로 경로를 탐색.
+ - 목표 설정
+ - 경로 누적
+ - 이동 애니메이션
+
+BottomDockingPanel
+ - 로그 출력
+ - 루프 시간 측정 그래프
+
+ToolbarPanel / MenuBar
+ - 전체화면 토글
+ - 디버그 모드
+ - 초기화 및 설정 기능 제공
 
 ---
 
