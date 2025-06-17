@@ -23,30 +23,30 @@ and wrapped via CFFI to be controlled directly in Python.
 
 ## ✅ 주요 기능 / Key Features
 
-| 기능 (Feature) | 설명 (Description) |
-|----------------|---------------------|
-| D* Lite 알고리즘 | C로 구현된 경로탐색 알고리즘을 실시간 호출<br>Real-time pathfinding in C |
-| GridMap 시스템 | 200x200 셀 블록을 자동 로딩<br>Dynamic cell loading |
-| 다중 NPC 시스템 | 여러 NPC 선택 및 제어<br>Multiple NPC support |
-| 목표 설정 / 누적 | Shift + 우클릭으로 목표 누적<br>Stacked goals (Shift + Right Click) |
-| 장애물 토글 | Spacebar로 산 생성/해제<br>Toggle mountain on cell |
-| 직관적 UI | 마우스로 NPC 제어<br>Mouse-based control |
+| 기능 | 설명 |
+|------|------|
+| D* Lite 알고리즘 | C로 구현된 경로탐색 알고리즘을 실시간 호출 |
+| GridMap 시스템 | 200x200 셀 블록을 자동 로딩하는 동적 맵 구조 |
+| 다중 NPC 시스템 | 여러 명의 NPC 생성 및 선택 가능 |
+| 목표 설정 / 누적 | Shift + 우클릭으로 여러 목표 순차 탐색 |
+| 장애물 토글 | 스페이스바로 마우스 위치에 '산' 생성 및 해제 |
+| 직관적 UI 조작 | 마우스 클릭만으로 NPC 제어 및 이동 |
 
 ---
 
 ## 🎮 사용 방법 / How to Use
 
-| 조작 (Control) | 설명 (Description) |
-|----------------|---------------------|
-| 좌클릭 | NPC 선택 (녹색 표시)<br>Select NPC (green light) |
-| 우클릭 | 목표 설정 및 이동<br>Set goal & move immediately |
-| Shift + 우클릭 | 목표 누적<br>Queue multiple goals |
-| 스페이스바 | '산(MOUNTAIN)' 토글<br>Toggle obstacle |
-| ESC | 전체화면 종료<br>Exit fullscreen |
-| 휠 인/아웃 | 셀 크기 조절<br>Resize grid cells |
-| 가운데 클릭 | 마우스 위치 중심 이동<br>Center view |
-| 방향키 | 그리드 이동<br>Move grid |
-| F11 | 전체화면 전환<br>Toggle fullscreen |
+| 조작 | 설명 |
+|------|------|
+| 좌클릭 | NPC 선택 (녹색 불빛 표시) |
+| 우클릭 | 목표 설정 및 즉시 이동 (기존 목표 제거) |
+| Shift + 우클릭 | 목표 누적 (순차적으로 이동) |
+| 스페이스바 | 마우스 위치 셀을 '산(MOUNTAIN)'으로 토글 (이동 불가) |
+| ESC | 전체화면 종료 (if 활성화 시) |
+| 휠 인/아웃 | 최소 10픽셀에서 최대 창크기만큼 셀 사이즈 변경 |
+| 가운데 버튼 클릭 | 마우스 위치의 셀을 중앙으로 이동 |
+| 방향키 | 전체 셀이 방향에 맞게 이동 |
+| F11 | 전체 화면 종료하려면 ESC
 
 ---
 
