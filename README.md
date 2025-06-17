@@ -116,13 +116,6 @@ python byul_demo.py
 
 ---
 
-## 관련 문서
-
-- /docs/dstar_lite_algorithm.md (향후 작성 예정)
-- /docs/npc_logic_overview.md (향후 작성 예정)
-
----
-
 ## 라이선스
 
 본 프로젝트는 “별이의 세계 (Byul World)” 프로젝트의 일부로서 공개되었으며,  
