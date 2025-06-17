@@ -1,3 +1,11 @@
+# npc.py
+#
+# Copyright (c) 2025 별이아빠 (byuldev@outlook.kr)
+# This file is part of the Byul World project.
+# Licensed under the Byul World 공개 라이선스 v1.0.
+# See LICENSE file for details.
+
+
 from ffi_core import ffi, C
 from coord import c_coord
 from map import c_map

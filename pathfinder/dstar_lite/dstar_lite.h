@@ -1,3 +1,10 @@
+// dstar_lite.h
+//
+// Copyright (c) 2025 별이아빠 (byuldev@outlook.kr)
+// This file is part of the Byul World project.
+// Licensed under the Byul World 공개 라이선스 v1.0
+// See the LICENSE file for details.
+
 /**
  * @file dstar_lite.h
  * @brief D* Lite 알고리즘 헤더
