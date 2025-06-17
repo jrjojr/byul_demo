@@ -29,9 +29,6 @@ DEFAULT_START_PATH = IMAGES_PATH / 'byul_world_start.png'
 DEFAULT_GOAL_PATH = IMAGES_PATH / 'byul_world_goal.png'
 DEFAULT_EMPTY_PATH = IMAGES_PATH / 'byul_world_empty.png'
 
-DEFAULT_NPC_PATH = IMAGES_PATH / 'npc/byul_world_npc_un.png'
-SELECTED_NPC_PATH = IMAGES_PATH / 'npc/byul_world_npc_sl.png'
-
 from utils.image_loader import load_image
 
 class GridCanvas(QWidget):
@@ -55,6 +52,7 @@ class GridCanvas(QWidget):
         self.grid_map_ctr = GridMapController(self.grid_map, parent=self)
 
         self.cell_size = 80
+        self.min_px = 20
 
         self.min_size_for_text = 50
         self.grid_width = 11
@@ -66,7 +64,7 @@ class GridCanvas(QWidget):
         self._pressed_keys = set()
 
         self.cached_pixmap = None
-        self.needs_redraw = True
+        self.needs_redraw = False
         self.icon_cache = {}
 
         self.default_empty_cell_color = QColor(30, 30, 30)
@@ -96,33 +94,29 @@ class GridCanvas(QWidget):
         self.cell_size_changed.connect(self.on_cell_size_changed)
         self.set_cell_size(80)
 
-        # self.npc_selected.connect(self.on_npc_selected)
-        # self.request_redraw()
+        self.npc_selected.connect(self.on_npc_selected)
         self.selected_npc = None
-        self.selected_npc_image = None
 
     def request_redraw(self):
         self.needs_redraw = True
 
-    # def showEvent(self, event):
-    #     super().showEvent(event)
-    #     self._tick()  # 첫 틱 강제 실행
-    #     self.request_redraw()
-
-
     def showEvent(self, event):
         super().showEvent(event)
-        npc_id = NPC.generate_random_npc_id()
-        npc = NPC(npc_id, self.grid_map, cell_size=self.cell_size)
-        QTimer.singleShot(1000, lambda: 
-                          self.grid_map_ctr.add_npc(npc)
-        )
-        g_logger.log_always(
-            f"최초의 NPC 추가됨: {npc_id} at ({npc.start.x},{npc.start.y})")
-        # print(f"최초의 NPC 추가됨: {npc_id} at ({npc.start.x},{npc.start.y})")
-        self.selected_npc = npc
-        self.selected_npc_image = load_image(SELECTED_NPC_PATH)                
+        coord = c_coord(0, 0)
+        QTimer.singleShot(1000, lambda: self.spawn_npc(coord))
+        self.request_redraw()
 
+    def spawn_npc(self, coord:c_coord):
+        npc_id = NPC.generate_random_npc_id()
+        self.grid_map_ctr.add_npc(npc_id, coord)
+        npc = self.grid_map_ctr.get_npc(npc_id)
+        if npc is None:
+            g_logger.log_debug(f'spawn_npc({npc_id}) 실패했다')
+
+        if self.selected_npc is None:
+            self.selected_npc = npc
+            self.npc_selected.emit(npc)
+       
     def enterEvent(self, event):
         if not self.hasFocus():
             self.setFocus(Qt.OtherFocusReason)
@@ -147,9 +141,8 @@ class GridCanvas(QWidget):
         elapsed_sec = now - self._last_tick_time
         self._last_tick_time = now
 
-        # 키 입력 등은 중앙 tick에서 처리하도록 이동
-        if self.grid_map_ctr.npc_list:
-            for npc in self.grid_map_ctr.npc_list:
+        if self.grid_map_ctr.npc_dict:
+            for npc in self.grid_map_ctr.npc_dict.values():
                 npc.on_tick(elapsed_sec)
 
         self.move_from_keys(self._pressed_keys)
@@ -198,32 +191,39 @@ class GridCanvas(QWidget):
 
                 icon_path = Path()
 
-                if cell.terrain == TerrainType.MOUNTAIN:
-                    icon_path = DEFAULT_OBSTACLE_PATH
-                    # self.selected_npc.finder.map.block(cell.x, cell.y)                    
-                    pass
-                elif not cell.terrain in self.selected_npc.movable_terrain:
-                    icon_path = DEFAULT_OBSTACLE_FOR_NPC_PATH
-                    # self.selected_npc.finder.map.block(cell.x, cell.y)
-                    pass
-                elif cell.status == CellStatus.NPC:
-                    # start = c_coord(cell.x, cell.y)
-                    # npc = NPC(cell.npc_ids[0], self.grid_map, start,
-                    #           cell_size=self.cell_size)
-                    # self.grid_map_ctr.add_npc(npc) 
-                    icon_path = DEFAULT_NPC_PATH
-                    pass
+                # if cell.terrain == TerrainType.MOUNTAIN:
+                #     icon_path = DEFAULT_OBSTACLE_PATH
+                #     pass
+
+                if cell.status == CellStatus.NPC:
+                    if len(cell.npc_ids) > 0:
+                        start = c_coord(cell.x, cell.y)
+                        for npc_id in cell.npc_ids:
+                            self.grid_map_ctr.add_npc(npc_id, start)
+                            npc = self.grid_map_ctr.get_npc(npc_id)
+
+                        # 가장 마지막의 npc의 그림만 알면 된다.
+                        if npc.anim_started:
+                            # 애니매이션이 시작되었다 기존에 셀에 그린 npc는 제거한다.
+                            # 이미지를 그리지 않고 empty 이미지를 그린다.
+                            icon_path = DEFAULT_EMPTY_PATH
+                        else:
+                            icon_path = npc.get_image_path()
                 else:
                     icon_path = DEFAULT_EMPTY_PATH
-                    if cell.has_flag(CellFlag.PATH):
-                        icon_path = cell.get_path_image()
-                        pass                    
-                    if cell.has_flag(CellFlag.START):
-                        icon_path = DEFAULT_START_PATH
-                        pass
-                    if cell.has_flag(CellFlag.GOAL):
-                        icon_path = DEFAULT_GOAL_PATH
-                        pass                
+
+                if self.selected_npc:
+                    if not cell.terrain in self.selected_npc.movable_terrain:
+                        icon_path = DEFAULT_OBSTACLE_FOR_NPC_PATH
+
+                if cell.has_flag(CellFlag.PATH):
+                    icon_path = cell.get_path_image()
+
+                # elif cell.has_flag(CellFlag.START):
+                #     icon_path = DEFAULT_START_PATH
+                #     pass
+                if cell.has_flag(CellFlag.GOAL):
+                    icon_path = DEFAULT_GOAL_PATH
 
                 if icon_path:
                     icon = self.get_icon(icon_path)
@@ -236,12 +236,12 @@ class GridCanvas(QWidget):
                     painter.drawText(px, py, self.cell_size, self.cell_size, 
                                      Qt.AlignCenter, cell.text())
 
-        for npc in self.grid_map_ctr.npc_list:
+        for npc in self.grid_map_ctr.npc_dict.values():
             npc_phantom_start = npc.phantom_start
             win_pos_x, win_pos_y = self.get_win_pos_at_coord(npc_phantom_start)
 
             if win_pos_x and win_pos_y:
-                npc.draw_npc( painter, win_pos_x, win_pos_y)
+                npc.draw( painter, win_pos_x, win_pos_y)
                 
         if self.selected_npc:
             npc_phantom_start = self.selected_npc.phantom_start
@@ -278,7 +278,7 @@ class GridCanvas(QWidget):
             cell = self.get_cell_at_win_pos(
                 self.last_mouse_pos.x(), self.last_mouse_pos.y())
             c = c_coord(cell.x, cell.y)
-            self.grid_map_ctr.toggle_obstacle(c)
+            self.grid_map_ctr.toggle_obstacle(c, self.selected_npc)
 
         # print(f"[KEY] {event.key()}, focus: {self.hasFocus()}")            
 
@@ -337,7 +337,7 @@ class GridCanvas(QWidget):
     def wheelEvent(self, event: QWheelEvent):
         delta = event.angleDelta().y()
         scale = 1.1 if delta > 0 else 1 / 1.1
-        new_size = max(10, min(self.cell_size * scale, 
+        new_size = max(self.min_px, min(self.cell_size * scale, 
                                min(self.width(), self.height())))
         
         self.set_cell_size(int(new_size))
@@ -494,20 +494,16 @@ class GridCanvas(QWidget):
             else:
                 g_logger.log_always("⚠️ 해당 셀에 NPC가 없습니다.")
         
-        elif self.click_mode == "add_npc":
-            npc_id = NPC.generate_random_npc_id()
-            npc = NPC(npc_id, self.grid_map,cell_size=self.cell_size)
-            npc.start = coord
-            self.grid_map_ctr.add_npc(npc)
-            g_logger.log_always(f"NPC 추가됨: {npc_id} at ({coord.x},{coord.y})")
+        elif self.click_mode == "spawn_npc":
+            self.spawn_npc(coord)
+            g_logger.log_always(f"NPC 추가됨: at ({coord.x},{coord.y})")
 
         elif self.click_mode == "remove_npc":
             if cell.npc_ids:
                 npc_id = cell.npc_ids[0]  # 임시로 첫 NPC만 제거
-                npc = next((n for n in self.grid_map_ctr.npc_list if n.id == npc_id), None)
+                npc = self.grid_map_ctr.npc_dict[npc_id]
                 if npc:
-                    self.grid_map_ctr.remove_npc(npc)
-                    self.grid_map_ctr.npc_list.remove(npc)
+                    self.grid_map_ctr.remove_npc(npc_id)
                     g_logger.log_always(f"NPC 제거됨: {npc_id} at ({coord.x},{coord.y})")
 
         elif self.click_mode == "obstacle":
@@ -578,24 +574,19 @@ class GridCanvas(QWidget):
         if not cell.npc_ids:
             return None
         first_id = cell.npc_ids[0]
-        return next(
-            (npc for npc in self.grid_map_ctr.npc_list if npc.id == first_id), 
-            None)
-    
+        return self.grid_map_ctr.npc_dict.get(first_id)
 
     @Slot(int)
-    def on_cell_size_changed(self, cell_size:int):
-        if self.grid_map_ctr.npc_list:
-            for npc in self.grid_map_ctr.npc_list:
-                npc.set_cell_size(cell_size)
+    def on_cell_size_changed(self, cell_size: int):
+        for npc in self.grid_map_ctr.npc_dict.values():
+            npc.set_cell_size(cell_size)
+
     @Slot(NPC)
     def on_npc_selected(self, npc:NPC):
-        # self.grid_map_ctr.to_proto_path_cells(npc)
-        # self.grid_map_ctr.to_real_path_cells(npc)
         npc_coord = npc.start
         cell:GridCell = self.grid_map_ctr.get_cell(npc_coord)
         if cell:
-            cell.add(CellFlag.START)
+            cell.add_flag(CellFlag.START)
 
     def draw_selected_npc(self, painter, win_pos_x:int, win_pos_y:int, 
                           disp_dx:float, disp_dy:float):
@@ -610,6 +601,6 @@ class GridCanvas(QWidget):
         # painter.setPen(Qt.NoPen)
         # painter.drawRect(rect)
 
-        image = self.selected_npc_image
+        image = self.selected_npc.get_selected_npc_image()
         painter.drawPixmap(
                 x, y, self.cell_size, self.cell_size, image)

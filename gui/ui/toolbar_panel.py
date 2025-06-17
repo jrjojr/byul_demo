@@ -30,7 +30,7 @@ class ToolbarPanel(QToolBar):
             "화면의 셀을 클릭하면 가장 첫 번째 NPC를 선택합니다"
         )        
         self.add_action(
-            "NPC 추가", lambda: self._change_mode("add_npc"),
+            "NPC 추가", lambda: self._change_mode("spawn_npc"),
             "화면의 셀을 클릭하면 랜덤 ID로 NPC를 추가합니다"
         )
         self.add_action(

@@ -6,6 +6,9 @@ from path import PathDir
 
 from utils.image_loader import load_image
 
+import random
+import string
+
 from config import IMAGES_PATH
 DEFAULT_PATH_UN_PATH = IMAGES_PATH / 'path/byul_world_path_un.png'
 DEFAULT_PATH_RI_PATH = IMAGES_PATH / 'path/byul_world_path_ri.png'
@@ -196,4 +199,60 @@ t:{self.terrain.name},
         cell.event_id = data.get("event_id")
         cell.timestamp = data.get("timestamp", 0.0)
         cell.custom_data = data.get("custom_data", {})
+        return cell
+
+    @classmethod
+    def random(cls,
+        x: int, y: int,
+        npc_chance: float = 0.05,
+        terrain_ratio_normal: float = 0.5,
+        terrain_ratio_road: float = 0.2,
+        terrain_ratio_water: float = 0.1,
+        terrain_ratio_forest: float = 0.1,
+        terrain_ratio_mountain: float = 0.1,
+        item_chance: float = 0.2,
+        effect_chance: float = 0.1,
+        event_chance: float = 0.05
+    ) -> "GridCell":
+        """
+        지정된 위치 (x, y)에 랜덤 속성을 가진 GridCell 하나 생성.
+        """
+        cell = cls(x, y)
+        cell.light_level = round(random.uniform(0.3, 1.0), 2)
+        cell.zone_id = random.choice(string.ascii_uppercase)
+
+        # Terrain 결정 (비율 기반)
+        terrain_weights = {
+            TerrainType.NORMAL: terrain_ratio_normal,
+            TerrainType.ROAD: terrain_ratio_road,
+            TerrainType.WATER: terrain_ratio_water,
+            TerrainType.FOREST: terrain_ratio_forest,
+            TerrainType.MOUNTAIN: terrain_ratio_mountain,
+        }
+        total_ratio = sum(terrain_weights.values())
+        r = random.random()
+        acc = 0.0
+        for terrain, ratio in terrain_weights.items():
+            acc += ratio / total_ratio
+            if r <= acc:
+                cell.terrain = terrain
+                break
+
+        # NPC 설정
+        if random.random() < npc_chance:
+            npc_id = f"npc_{random.randint(1000, 9999)}"
+            cell.status = CellStatus.NPC
+            cell.npc_ids.append(npc_id)
+        else:
+            cell.status = CellStatus.EMPTY
+
+        # 아이템 / 효과 / 이벤트
+        if random.random() < item_chance:
+            cell.items.append("item_" + random.choice(["apple", "gem", "scroll"]))
+        if random.random() < effect_chance:
+            cell.effect_id = "heal_zone"
+        if random.random() < event_chance:
+            cell.event_id = "trigger_lever"
+
+        cell.timestamp = 0.0
         return cell

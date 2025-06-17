@@ -15,46 +15,116 @@ class GridMapController(QObject):
         super().__init__()
         self.grid_map = grid_map
         self.parent = parent
-        self.npc_list: list[NPC] = []
+        self.npc_dict: dict[NPC] = dict()
 
-    def add_npc(self, npc: NPC):
-        self.npc_list.append(npc)
+    def has_npc(self, npc_id):
+        if npc_id in self.npc_dict:
+            return True
+        
+        return False
+    
+    def get_npc(self, npc_id)->NPC:
+        return self.npc_dict[npc_id]
+    
+    def add_npc(self, npc_id, start:c_coord):
+        # 이미 self가 npc를 가지고 있으며 종료한다.
+        if self.has_npc(npc_id):
+            return 
+        
+        npc = NPC(npc_id, self.grid_map, start, cell_size=self.parent.cell_size)
+        self.npc_dict[npc_id] = npc
         npc.parent = self
         npc.anim_to_arrived.connect(lambda coord, n=npc: 
-                                      self.on_anim_to_arrived(n, coord))
-        # 이동 불가한 테란 전부 제거
-        # normal로 설정하면 제거된다.
-        cell = self.get_cell(npc.start)
-        cell.terrain = TerrainType.NORMAL
-        self.grid_map.map.unblock(npc.start.x, npc.start.y)
-        
-        self.place_npc(npc)
+                                        self.on_anim_to_arrived(n, coord))
 
-    def get_cell(self, coord: c_coord) -> GridCell | None:
-        if not coord:
-            return None
+        cell = self.get_cell(npc.start)
+        if cell.terrain not in npc.movable_terrain:
+            npc.movable_terrain.append(cell.terrain)
+
+        self.place_npc(npc, npc.start)
+
+
+    def remove_npc(self, npc_id):
+        # npc가 존재하는지 확인한다
+        if not self.has_npc(npc_id):
+            g_logger.log_debug(f'npc({npc_id})가 존재하지 않아서 종료한다.')
+            return 
+        
+        # 셀에서 npc 제거
+        npc:NPC = self.npc_dict[npc_id]
+        cell = self.get_cell(npc.start)
+        cell.remove_npc(npc_id)
+
+        # npc 메모리 해제
+        npc.close()
+
+        pass
+
+    def get_cell(self, coord: c_coord) -> GridCell:
         return self.grid_map.get(coord.x, coord.y)
 
-    def add_obstacle(self, coord: c_coord):
+    def add_obstacle(self, coord: c_coord, npc:NPC):
         cell = self.get_cell(coord)
-        if cell:
-            cell.terrain = TerrainType.MOUNTAIN
-            # self.grid_map.map.block(coord.x, coord.y)
+        if cell and npc:
+            # 1. NPC가 모든 지형을 갈 수 있다면 → 장애물 개념 없음
+            if not npc.movable_terrain:
+                cell.terrain = TerrainType.MOUNTAIN
+                g_logger.log_always(
+                    f"[SET OBSTACLE] {coord} → {npc.id}는 "
+                    f"모든 terrain을 이동 가능함 "
+                    f"그래서 가장 어려운 MOUNTAIN으로 설정한다."
+                )
+                return
 
-    def remove_obstacle(self, coord: c_coord):
-        cell = self.get_cell(coord)
-        if cell:
-            cell.terrain = TerrainType.NORMAL
-            # self.grid_map.map.unblock(coord.x, coord.y)
+            # 2. 현재 terrain이 NPC 기준 이동 가능하다면 → 바꿔야 함
+            if cell.terrain in npc.movable_terrain:
+                # NPC가 못 가는 terrain 중 하나로 교체 (기본은 MOUNTAIN)
+                for terrain in TerrainType:
+                    if terrain not in npc.movable_terrain:
+                        cell.terrain = terrain
+                        g_logger.log_always(
+                            f"[SET OBSTACLE] {coord} → terrain = "
+                            f"{terrain.name} (not movable by {npc.id})"
+                        )
+                        return
+            else:
+                g_logger.log_always(
+                    f"[SKIP SET OBSTACLE] {coord} → {npc.id} 기준으로 "
+                    f"이미 이동 불가 terrain ({cell.terrain.name})"
+                )
 
-    def toggle_obstacle(self, coord: c_coord):
+    def remove_obstacle(self, coord: c_coord, npc:NPC):
         cell = self.get_cell(coord)
-        if not cell:
+        if cell and npc:
+            if not npc.movable_terrain:
+                cell.terrain = TerrainType.NORMAL
+                g_logger.log_always(
+                    f"[REMOVE OBSTACLE] {coord} → {npc.id}는 "
+                    f"모든 terrain 이동 가능 → terrain=NORMAL로 초기화"
+                )
+                return
+
+            if npc.movable_terrain:
+                old_terrain = cell.terrain
+                new_terrain = npc.movable_terrain[0]
+                cell.terrain = new_terrain
+                g_logger.log_always(
+                    f"[REMOVE OBSTACLE] {coord} → {npc.id} 기준 장애물 제거 "
+                    f"({old_terrain.name} → {new_terrain.name})"
+                )
+
+    def toggle_obstacle(self, coord: c_coord, npc:NPC):
+        cell = self.get_cell(coord)
+        if not cell or not npc:
             return
-        if cell.terrain == TerrainType.MOUNTAIN:
-            self.remove_obstacle(coord)
+
+        if cell.terrain not in npc.movable_terrain:
+            # 현재 terrain은 NPC 기준 장애물이다 → 해제
+            self.remove_obstacle(coord, npc)
         else:
-            self.add_obstacle(coord)
+            # 현재 terrain은 NPC가 통과 가능 → 새 장애물 생성
+            self.add_obstacle(coord, npc)
+
 
     def set_start(self, npc: NPC, coord: c_coord):
         new_cell = self.get_cell(coord)
@@ -142,38 +212,32 @@ class GridMapController(QObject):
 
         pass        
 
-    def place_npc(self, npc: NPC):
-        coord = npc.start
+    def place_npc(self, npc: NPC, coord:c_coord):
+        # npc가 기존에 있던 셀에서 제거한다.
+        cell = self.get_cell(npc.start)
+        cell.remove_npc(npc.id)
+
+        # 새로운 위체의 셀에 npc를 추가한다.
+        npc.start = coord
         cell = self.get_cell(coord)
-        if cell:
-            cell.add_npc(npc.id)
+        cell.add_npc(npc.id)
 
-            # 경로 제거
-            if cell.has_flag(CellFlag.PATH):
-                cell.remove_flag(CellFlag.PATH)
+        # 경로 제거
+        if cell.has_flag(CellFlag.PATH):
+            cell.remove_flag(CellFlag.PATH)
 
-            # 목표 제거
-            if cell.has_flag(CellFlag.GOAL):
-                cell.remove_flag(CellFlag.GOAL)
-
-    def remove_npc(self, npc: NPC):
-        coord = npc.start
-        cell = self.get_cell(coord)
-        if cell:
-            cell.remove_npc(npc.id)
-            self.grid_map.map.unblock(cell.x, cell.y)
+        # 목표 제거
+        if cell.has_flag(CellFlag.GOAL):
+            cell.remove_flag(CellFlag.GOAL)
 
     @Slot(c_coord)
     def on_anim_to_arrived(self, npc: NPC, coord: c_coord):
-        self.remove_npc(npc)
-        npc.start = coord
-        self.place_npc(npc)
+        self.place_npc(npc, coord)
 
         pass
 
     @Slot(c_coord)
     def on_move_to_started(self, npc: NPC, coord: c_coord):
-        # self.remove_npc(npc)
         next_cell = self.get_cell(coord)
         next_cell.add(CellFlag.PATH)
         next_cell.path_dir = calc_direction(npc.start, coord)

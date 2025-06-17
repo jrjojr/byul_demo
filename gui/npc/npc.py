@@ -31,6 +31,8 @@ from utils.image_loader import load_image
 
 from queue import Queue, Empty
 
+import random
+
 import uuid
 import math
 
@@ -44,6 +46,9 @@ NPC_LE_PATH = DEFAULT_NPC_IMAGE_PATH / 'byul_world_npc_le.png'
 NPC_DL_PATH = DEFAULT_NPC_IMAGE_PATH / 'byul_world_npc_dl.png'
 NPC_DO_PATH = DEFAULT_NPC_IMAGE_PATH / 'byul_world_npc_do.png'
 NPC_DR_PATH = DEFAULT_NPC_IMAGE_PATH / 'byul_world_npc_dr.png'
+
+DEFAULT_NPC_PATH = IMAGES_PATH / 'npc/byul_world_npc_un.png'
+SELECTED_NPC_PATH = IMAGES_PATH / 'npc/byul_world_npc_sl.png'
 
 class NPC(QObject):
     anim_to_arrived = Signal(c_coord)
@@ -64,6 +69,8 @@ class NPC(QObject):
 
         self.id = npc_id
         self.finder = c_dstar_lite.from_map(gmap.map)
+        self.finder.compute_max_retry = 1000
+        self.loop_once = False
 
         self.movable_terrain = [TerrainType.NORMAL, TerrainType.ROAD]
 
@@ -72,12 +79,17 @@ class NPC(QObject):
         else:
             self.image_path = DEFAULT_NPC_IMAGE_PATH
 
-        self.parent = parent
+        self.image_paths = dict()
+        self.load_image_paths(self.image_path)
 
-        self.direction = PathDir.UNKNOWN
         self.images = dict() # self.direction : image
         self.load_images(self.image_path)
 
+        self.parent = parent
+
+        self.direction = random.randint(
+            PathDir.RIGHT.value, PathDir.DOWN_RIGHT.value)
+        
         self._changed_q = Queue()
 
         self.disp_dx = 0.0
@@ -116,7 +128,6 @@ class NPC(QObject):
         self.speed_kmh = speed_kmh  # default speed
         self.start_delay_sec = start_delay_sec
         self.total_elapsed_sec = 0.0
-        self.now_moving = False
 
         # self.finder.move_func = MOVE_TO
         self._move_cb_c = ffi.callback(
@@ -305,6 +316,7 @@ start_delay_sec : {self.start_delay_sec}''')
                 self.anim_started = False
                 self.next = None  # 다음 tick에서 새 목표 pop
 
+
     def find_loop(self):
         '''쓰레드에서 실행된다.'''
         try:
@@ -454,9 +466,8 @@ start_delay_sec : {self.start_delay_sec}''')
         cell = self.parent.get_cell(c)
         return self.is_obstacle(cell)
 
-    def draw_npc(self, painter: QPainter, 
+    def draw(self, painter: QPainter, 
                  start_win_pos_x:int, start_win_pos_y:int):
-    # def draw_npc(self, painter: QPainter):
         '''실제 디바이스에 이미지를 그린다.
         '''
         x = start_win_pos_x + self.draw_offset_x + int(self.disp_dx)
@@ -474,9 +485,41 @@ start_delay_sec : {self.start_delay_sec}''')
 
         pass
 
-    def get_image(self, direction:PathDir):
-        return self.images[direction]
+    def get_image(self):
+        return self.images[self.direction]
     
+    def get_image_path(self):
+        return self.image_paths[self.direction]
+
+    def load_image_paths(self, images_path:Path):
+        unknown_image_path = images_path / NPC_UN_PATH
+        self.image_paths[PathDir.UNKNOWN] = unknown_image_path
+
+        ri_image_path = images_path / NPC_RI_PATH
+        self.image_paths[PathDir.RIGHT] = ri_image_path
+
+        tr_image_path = images_path / NPC_TR_PATH
+        self.image_paths[PathDir.TOP_RIGHT] = tr_image_path
+
+        to_image_path = images_path / NPC_TO_PATH
+        self.image_paths[PathDir.TOP] = to_image_path
+
+        tl_image_path = images_path / NPC_TL_PATH
+        self.image_paths[PathDir.TOP_LEFT] = tl_image_path
+
+        le_image_path = images_path / NPC_LE_PATH
+        self.image_paths[PathDir.LEFT] = le_image_path
+
+        dl_image_path = images_path / NPC_DL_PATH
+        self.image_paths[PathDir.DOWN_LEFT] = dl_image_path
+
+        do_image_path = images_path / NPC_DO_PATH
+        self.image_paths[PathDir.DOWN] = do_image_path
+
+        dr_image_path = images_path / NPC_DR_PATH
+        self.image_paths[PathDir.DOWN_RIGHT] = dr_image_path
+
+
     def load_images(self, images_path:Path):
         unknown_image_path = images_path / NPC_UN_PATH
         self.images[PathDir.UNKNOWN] = load_image(unknown_image_path)
@@ -609,6 +652,9 @@ start_delay_sec : {self.start_delay_sec}''')
 
     def get_image(self):
         return self.images[self.direction]
+    
+    def get_selected_npc_image(self):
+        return load_image(SELECTED_NPC_PATH)
     
     @staticmethod
     def generate_random_npc_id() -> str:

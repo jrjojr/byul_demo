@@ -1,0 +1,14 @@
+int_max 
+2147483647
+2000000000
+
+def wrap_coord(value: int) -> int:
+    if value > INT_MAX:
+        return INT_MIN + (value - INT_MAX - 1)
+    elif value < INT_MIN:
+        return INT_MAX + (value - INT_MIN + 1)
+    return value
+
+def wrap_coord(value: int, bound: int = INT_MAX) -> int:
+    range_size = 2 * bound + 1
+    return ((value + bound) % range_size) - bound
