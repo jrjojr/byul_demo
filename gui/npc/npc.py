@@ -5,7 +5,6 @@
 # Licensed under the Byul World 공개 라이선스 v1.0.
 # See LICENSE file for details.
 
-
 from ffi_core import ffi, C
 from coord import c_coord
 from map import c_map
@@ -17,17 +16,13 @@ from pathlib import Path
 from PySide6.QtGui import QPixmap, QPainter, QColor
 from PySide6.QtCore import QPoint, QRect, Qt, QTimer, QObject, Signal, Slot
 
-from threading import Thread, Lock
-
-from config import IMAGES_PATH
-from path import c_path, PathDir, calc_direction
+from route import c_route, RouteDir, calc_direction
 from list import c_list
 
 from grid.grid_map import GridMap
 from grid.grid_cell import TerrainType, GridCell, CellStatus
 
 from utils.log_to_panel import g_logger
-from utils.image_loader import load_image
 
 from queue import Queue, Empty
 
@@ -36,31 +31,23 @@ import random
 import uuid
 import math
 
-DEFAULT_NPC_IMAGE_PATH = IMAGES_PATH / "npc"
-NPC_UN_PATH = DEFAULT_NPC_IMAGE_PATH / 'byul_world_npc_un.png'
-NPC_RI_PATH = DEFAULT_NPC_IMAGE_PATH / 'byul_world_npc_ri.png'
-NPC_TR_PATH = DEFAULT_NPC_IMAGE_PATH / 'byul_world_npc_tr.png'
-NPC_TO_PATH = DEFAULT_NPC_IMAGE_PATH / 'byul_world_npc_to.png'
-NPC_TL_PATH = DEFAULT_NPC_IMAGE_PATH / 'byul_world_npc_tl.png'
-NPC_LE_PATH = DEFAULT_NPC_IMAGE_PATH / 'byul_world_npc_le.png'
-NPC_DL_PATH = DEFAULT_NPC_IMAGE_PATH / 'byul_world_npc_dl.png'
-NPC_DO_PATH = DEFAULT_NPC_IMAGE_PATH / 'byul_world_npc_do.png'
-NPC_DR_PATH = DEFAULT_NPC_IMAGE_PATH / 'byul_world_npc_dr.png'
+from utils.image_manager import ImageManager
 
-DEFAULT_NPC_PATH = IMAGES_PATH / 'npc/byul_world_npc_un.png'
-SELECTED_NPC_PATH = IMAGES_PATH / 'npc/byul_world_npc_sl.png'
+from threading import Thread
 
 class NPC(QObject):
     anim_to_arrived = Signal(c_coord)
     speed_kmh_changed = Signal(float)
 
-    # proto_path_found = Signal()
-    # real_path_found = Signal()
+    # proto_route_found = Signal()
+    # real_route_found = Signal()
 
     def __init__(self, npc_id: str, gmap:GridMap, start:c_coord=None, 
-                 speed_kmh:float=4.0, start_delay_sec=0.5, path_capacity=100, 
+                 speed_kmh:float=4.0, start_delay_sec=0.5, route_capacity=100, 
                  cell_size=100, 
-                 image_path:Path=None, parent=None):
+                 image_path:Path=None, route_image_path:Path=None, 
+                 parent=None):
+        
         '''start_delay_sec는 0.5 밑으로는 설정하지 마라.
         여러번 클릭시에 경로 찾기가 잠깐 멈춘다 다시 클릭해야 npc가 움직인다.
         '''
@@ -74,21 +61,16 @@ class NPC(QObject):
 
         self.movable_terrain = [TerrainType.NORMAL, TerrainType.ROAD]
 
-        if image_path:
-            self.image_path = image_path
-        else:
-            self.image_path = DEFAULT_NPC_IMAGE_PATH
+        # 경로 및 이미지 캐시에서 로딩
+        self.image_paths = ImageManager.get_npc_image_paths(image_path)
+        self.images = ImageManager.get_npc_image_set(image_path)        
 
-        self.image_paths = dict()
-        self.load_image_paths(self.image_path)
-
-        self.images = dict() # self.direction : image
-        self.load_images(self.image_path)
+        self.route_images = ImageManager.get_route_image_set(route_image_path)
 
         self.parent = parent
 
         self.direction = random.randint(
-            PathDir.RIGHT.value, PathDir.DOWN_RIGHT.value)
+            RouteDir.RIGHT.value, RouteDir.DOWN_RIGHT.value)
         
         self._changed_q = Queue()
 
@@ -105,7 +87,7 @@ class NPC(QObject):
 
         self.real_coord_list = list()
         self.proto_coord_list = list()
-        self.path_capacity = path_capacity
+        self.route_capacity = route_capacity
 
         if start:
             self.finder.start = start
@@ -299,7 +281,7 @@ start_delay_sec : {self.start_delay_sec}''')
 
         if self.next:
             new_dir = calc_direction(self.phantom_start, self.next)
-            if new_dir != PathDir.UNKNOWN:
+            if new_dir != RouteDir.UNKNOWN:
                 self.direction = new_dir
 
             self.anim_moving_to(self.next, elapsed_sec)
@@ -343,12 +325,12 @@ start_delay_sec : {self.start_delay_sec}''')
                                 self.prev_goal = self.finder.goal
 
                     self.finder.find_proto()
-                    path = self.finder.get_proto_path()
-                    self.proto_queue.put(path.copy())
-                    if path.success:
-                        g_logger.log_debug_threadsafe(f'proto path 찾기가 성공했다')
+                    route = self.finder.get_proto_route()
+                    self.proto_queue.put(route.copy())
+                    if route.success:
+                        g_logger.log_debug_threadsafe(f'proto route 찾기가 성공했다')
                     else:
-                        g_logger.log_debug_threadsafe(f'proto path 찾기가 실패했다')
+                        g_logger.log_debug_threadsafe(f'proto route 찾기가 실패했다')
 
                     g_logger.log_debug_threadsafe(f'''초기 경로 찾기 로그:
         self.finder.proto_compute_retry_count : {self.finder.proto_compute_retry_count}, 
@@ -356,12 +338,12 @@ start_delay_sec : {self.start_delay_sec}''')
         ''')
 
                     self.finder.find_loop()
-                    path = self.finder.get_proto_path()
-                    self.real_queue.put(path.copy())
-                    if path.success:
-                        g_logger.log_debug_threadsafe(f'real path 찾기가 성공했다')
+                    route = self.finder.get_proto_route()
+                    self.real_queue.put(route.copy())
+                    if route.success:
+                        g_logger.log_debug_threadsafe(f'real route 찾기가 성공했다')
                     else:
-                        g_logger.log_debug_threadsafe(f'real path 찾기가 실패했다')
+                        g_logger.log_debug_threadsafe(f'real route 찾기가 실패했다')
 
                     g_logger.log_debug_threadsafe(f'''실제 경로 찾기 로그
         self.finder.real_compute_retry_count : {self.finder.real_compute_retry_count}, 
@@ -483,7 +465,6 @@ start_delay_sec : {self.start_delay_sec}''')
         image = self.get_image()
         painter.drawPixmap(
                 x, y, self.m_cell_size, self.m_cell_size, image)
-
         pass
 
     def get_image(self):
@@ -491,63 +472,16 @@ start_delay_sec : {self.start_delay_sec}''')
     
     def get_image_path(self):
         return self.image_paths[self.direction]
+    
+    def get_route_image(self):
+        direction = calc_direction(self.start, self.next)
+        return self.route_images[direction]
 
-    def load_image_paths(self, images_path:Path):
-        unknown_image_path = images_path / NPC_UN_PATH
-        self.image_paths[PathDir.UNKNOWN] = unknown_image_path
+    def load_image_paths(self, image_path:Path):
+        self.image_paths = ImageManager.get_npc_image_paths(image_path)
 
-        ri_image_path = images_path / NPC_RI_PATH
-        self.image_paths[PathDir.RIGHT] = ri_image_path
-
-        tr_image_path = images_path / NPC_TR_PATH
-        self.image_paths[PathDir.TOP_RIGHT] = tr_image_path
-
-        to_image_path = images_path / NPC_TO_PATH
-        self.image_paths[PathDir.TOP] = to_image_path
-
-        tl_image_path = images_path / NPC_TL_PATH
-        self.image_paths[PathDir.TOP_LEFT] = tl_image_path
-
-        le_image_path = images_path / NPC_LE_PATH
-        self.image_paths[PathDir.LEFT] = le_image_path
-
-        dl_image_path = images_path / NPC_DL_PATH
-        self.image_paths[PathDir.DOWN_LEFT] = dl_image_path
-
-        do_image_path = images_path / NPC_DO_PATH
-        self.image_paths[PathDir.DOWN] = do_image_path
-
-        dr_image_path = images_path / NPC_DR_PATH
-        self.image_paths[PathDir.DOWN_RIGHT] = dr_image_path
-
-
-    def load_images(self, images_path:Path):
-        unknown_image_path = images_path / NPC_UN_PATH
-        self.images[PathDir.UNKNOWN] = load_image(unknown_image_path)
-
-        ri_image_path = images_path / NPC_RI_PATH
-        self.images[PathDir.RIGHT] = load_image(ri_image_path)
-
-        tr_image_path = images_path / NPC_TR_PATH
-        self.images[PathDir.TOP_RIGHT] = load_image(tr_image_path)
-
-        to_image_path = images_path / NPC_TO_PATH
-        self.images[PathDir.TOP] = load_image(to_image_path)
-
-        tl_image_path = images_path / NPC_TL_PATH
-        self.images[PathDir.TOP_LEFT] = load_image(tl_image_path)
-
-        le_image_path = images_path / NPC_LE_PATH
-        self.images[PathDir.LEFT] = load_image(le_image_path)
-
-        dl_image_path = images_path / NPC_DL_PATH
-        self.images[PathDir.DOWN_LEFT] = load_image(dl_image_path)
-
-        do_image_path = images_path / NPC_DO_PATH
-        self.images[PathDir.DOWN] = load_image(do_image_path)
-
-        dr_image_path = images_path / NPC_DR_PATH
-        self.images[PathDir.DOWN_RIGHT] = load_image(dr_image_path)
+    def load_images(self, image_path:Path):
+        self.images = ImageManager.get_npc_image_set(image_path)                
 
     def log_info(self):
         g_logger.log_debug(f'''
@@ -564,9 +498,9 @@ start_delay_sec : {self.start_delay_sec}''')
     self.m_cell_size = {self.m_cell_size}
 ''')
 
-    def on_proto_path_found(self):
+    def on_proto_route_found(self):
         try:
-            p: c_path = self.proto_queue.get_nowait()
+            p: c_route = self.proto_queue.get_nowait()
         except Empty:
             g_logger.log_debug('텅 비었다 self.proto_queue.get_nowait()')
             return
@@ -578,8 +512,8 @@ start_delay_sec : {self.start_delay_sec}''')
 
             # 전체 경로를 합친 뒤 자르기
             full = self.proto_coord_list + coord_list
-            if len(full) > self.path_capacity:
-                full = full[-self.path_capacity:]
+            if len(full) > self.route_capacity:
+                full = full[-self.route_capacity:]
             self.proto_coord_list = full
 
             g_logger.log_debug(
@@ -591,9 +525,9 @@ start_delay_sec : {self.start_delay_sec}''')
             # p.close()
             pass
 
-    def on_real_path_found(self):
+    def on_real_route_found(self):
         try:
-            p: c_path = self.real_queue.get_nowait()
+            p: c_route = self.real_queue.get_nowait()
         except Empty:
             g_logger.log_debug('텅 비었다 self.real_queue.get_nowait()')
             return
@@ -605,8 +539,8 @@ start_delay_sec : {self.start_delay_sec}''')
 
             # 전체 경로를 합친 뒤 자르기
             full = self.real_coord_list + coord_list
-            if len(full) > self.path_capacity:
-                full = full[-self.path_capacity:]
+            if len(full) > self.route_capacity:
+                full = full[-self.route_capacity:]
             self.real_coord_list = full
 
             g_logger.log_debug(
@@ -618,10 +552,10 @@ start_delay_sec : {self.start_delay_sec}''')
             # p.close()
             pass
 
-    def clear_proto_path(self):
+    def clear_proto_route(self):
         self.proto_coord_list.clear()
 
-    def clear_real_path(self):
+    def clear_real_route(self):
         self.real_coord_list.clear()
 
     def flush_goal_q(self):
@@ -654,8 +588,8 @@ start_delay_sec : {self.start_delay_sec}''')
     def get_image(self):
         return self.images[self.direction]
     
-    def get_selected_npc_image(self):
-        return load_image(SELECTED_NPC_PATH)
+    def get_selected_npc_image(self, path:Path=None):
+        return ImageManager.get_selected_npc_image(path)
     
     @staticmethod
     def generate_random_npc_id() -> str:

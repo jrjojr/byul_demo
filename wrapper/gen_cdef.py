@@ -5,12 +5,12 @@
 
 이 스크립트는 다음 두 가지 파서를 결합하여 완전한 선언 목록을 추출합니다:
 
-1. extract_structs_and_typedefs(header_path)
+1. extract_structs_and_typedefs(header_route)
    - libclang 기반으로 `struct`, `typedef` 선언을 추출합니다.
    - 장점: C의 구문을 정확히 분석하여 중복 없이 구조를 보존합니다.
    - 단점: 함수 선언 중 일부 복잡한 매크로나 콜백 주석이 포함된 선언은 추출하지 못함
 
-2. FunctionDeclarationParser.extract_function_declarations(header_path)
+2. FunctionDeclarationParser.extract_function_declarations(header_route)
    - 정규표현식 기반으로 `.h` 파일 내의 함수 선언을 직접 분석합니다.
    - 멀티라인 함수 선언도 지원하며, `BYUL_API`, `gint` 등의 매크로는 자동 치환됩니다.
    - 장점: 주석이 달린 선언, 매크로가 포함된 함수도 안전하게 인식
@@ -75,7 +75,7 @@ REPLACEMENTS = {
     "map_neighbor_mode_t": "int",
 }
 
-CUSTOM_POINTER_STRUCTS = {'flud', 'algo', 'path', 'map', 'coord'}
+CUSTOM_POINTER_STRUCTS = {'flud', 'algo', 'route', 'map', 'coord'}
 
 EXTERNAL_FORWARD_DECLS = {
     "GHashTable": "typedef struct _GHashTable GHashTable;",
@@ -236,9 +236,9 @@ class CdefExtractor:
         lines.append("if platform.system() == 'Windows':")
         lines.append("    glib_dir = Path('C:/msys64/clang64/bin')")
         lines.append("    os.add_dll_directory(str(glib_dir))")
-        lines.append("    dll_path = Path.home() / 'byul_world' / 'bin' / 'libpathfinder.dll'")
+        lines.append("    dll_path = Path.home() / 'byul_world' / 'bin' / 'libroutefinder.dll'")
         lines.append("else:")
-        lines.append("    dll_path = Path.home() / 'byul_world' / 'bin' / 'libpathfinder.so'")
+        lines.append("    dll_path = Path.home() / 'byul_world' / 'bin' / 'libroutefinder.so'")
         lines.append("C = ffi.dlopen(str(dll_path))")
         lines.append("")
 

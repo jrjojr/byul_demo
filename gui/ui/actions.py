@@ -50,15 +50,15 @@ class Actions(QObject):
             self.on_remove_obstacle_action_triggered)
         self.remove_obstacle_action = remove_obstacle_action
 
-        find_path_action = QAction("&Find Path", parent)
-        find_path_action.triggered.connect(
-            self.on_find_path_action_triggered)
-        self.find_path_action = find_path_action
+        find_route_action = QAction("&Find Route", parent)
+        find_route_action.triggered.connect(
+            self.on_find_route_action_triggered)
+        self.find_route_action = find_route_action
 
-        clear_path_action = QAction("&Clear Path", parent)
-        clear_path_action.triggered.connect(
-            self.on_clear_path_action_triggered)
-        self.clear_path_action = clear_path_action
+        clear_route_action = QAction("&Clear Route", parent)
+        clear_route_action.triggered.connect(
+            self.on_clear_route_action_triggered)
+        self.clear_route_action = clear_route_action
 
         goto_action = QAction("&Move to Center", parent)
         goto_action.setShortcut("Ctrl+G")
@@ -116,35 +116,35 @@ class Actions(QObject):
         self.remove_npc_action.triggered.connect(
             self.on_remove_npc_action_triggered)        
         
-        self.clear_path_action = QAction('경로 초기화', parent)
-        self.clear_path_action.setToolTip(
-            '모든 PATH 플래그를 제거합니다')
-        self.clear_path_action.triggered.connect(
-            self.on_clear_path_action_triggered)
+        self.clear_route_action = QAction('경로 초기화', parent)
+        self.clear_route_action.setToolTip(
+            '모든 ROUTE 플래그를 제거합니다')
+        self.clear_route_action.triggered.connect(
+            self.on_clear_route_action_triggered)
         
-        self.view_proto_path_action = QAction('npc의 초기 경로 보기', parent)
-        self.view_proto_path_action.setToolTip(
+        self.view_proto_route_action = QAction('npc의 초기 경로 보기', parent)
+        self.view_proto_route_action.setToolTip(
             'npc의 초기 경로를 보여준다')
-        self.view_proto_path_action.triggered.connect(
-            self.on_view_proto_path_action_triggered)
+        self.view_proto_route_action.triggered.connect(
+            self.on_view_proto_route_action_triggered)
 
-        self.view_real_path_action = QAction('npc의 실제 경로 보기', parent)
-        self.view_real_path_action.setToolTip(
+        self.view_real_route_action = QAction('npc의 실제 경로 보기', parent)
+        self.view_real_route_action.setToolTip(
             'npc의 실제 경로를 보여준다')
-        self.view_real_path_action.triggered.connect(
-            self.on_view_real_path_action_triggered)
+        self.view_real_route_action.triggered.connect(
+            self.on_view_real_route_action_triggered)
         
-        self.clear_proto_path_action = QAction('npc의 초기 경로 삭제', parent)
-        self.clear_proto_path_action.setToolTip(
+        self.clear_proto_route_action = QAction('npc의 초기 경로 삭제', parent)
+        self.clear_proto_route_action.setToolTip(
             'npc의 초기 경로를 삭제한다')
-        self.clear_proto_path_action.triggered.connect(
-            self.on_clear_proto_path_action_triggered)        
+        self.clear_proto_route_action.triggered.connect(
+            self.on_clear_proto_route_action_triggered)        
 
-        self.clear_real_path_action = QAction('npc의 실제 경로 삭제', parent)
-        self.clear_real_path_action.setToolTip(
+        self.clear_real_route_action = QAction('npc의 실제 경로 삭제', parent)
+        self.clear_real_route_action.setToolTip(
             'npc의 실제 경로를 삭제한다')
-        self.clear_real_path_action.triggered.connect(
-            self.on_clear_real_path_action_triggered)
+        self.clear_real_route_action.triggered.connect(
+            self.on_clear_real_route_action_triggered)
         
     def on_load_action_triggered(self):
         file_path, _ = QFileDialog.getOpenFileName(self.parent, 
@@ -178,11 +178,11 @@ class Actions(QObject):
     def on_remove_obstacle_action_triggered(self):
         self.parent.grid_ctr.remove_obstacle_from_selection()
 
-    def on_find_path_action_triggered(self):
-        self.parent.grid_ctr.find_path()
+    def on_find_route_action_triggered(self):
+        self.parent.grid_ctr.find_route()
     
-    def on_clear_path_action_triggered(self):
-        self.parent.grid_ctr.clear_path()
+    def on_clear_route_action_triggered(self):
+        self.parent.grid_ctr.clear_route()
 
     def on_goto_action_triggered(self):
         dialog = GotoDialog()
@@ -250,26 +250,26 @@ class Actions(QObject):
         setting_widget = self.parent.side_panel.canvas_setting_widget
         setting_widget.set_combo_click_mode('remove_npc')        
 
-    def on_clear_path_action_triggered(self):
-        self.parent.grid_canvas.grid_map_ctr.clear_path()
+    def on_clear_route_action_triggered(self):
+        self.parent.grid_canvas.grid_map_ctr.clear_route()
 
-    def on_view_proto_path_action_triggered(self):
-        self.parent.grid_canvas.grid_map_ctr.to_proto_path_cells(
+    def on_view_proto_route_action_triggered(self):
+        self.parent.grid_canvas.grid_map_ctr.to_proto_route_cells(
             self.parent.grid_canvas.selected_npc)
 
-    def on_view_real_path_action_triggered(self):
-        self.parent.grid_canvas.grid_map_ctr.to_real_path_cells(
+    def on_view_real_route_action_triggered(self):
+        self.parent.grid_canvas.grid_map_ctr.to_real_route_cells(
             self.parent.grid_canvas.selected_npc)
 
-    def on_clear_proto_path_action_triggered(self):
+    def on_clear_proto_route_action_triggered(self):
         if self.parent.grid_canvas.selected_npc:
-            self.parent.grid_canvas.selected_npc.clear_proto_path()
+            self.parent.grid_canvas.selected_npc.clear_proto_route()
         else:
             g_logger.log_always(f'현재 선택된 npc가 없어여')
 
-    def on_clear_real_path_action_triggered(self):
+    def on_clear_real_route_action_triggered(self):
         if self.parent.grid_canvas.selected_npc:
-            self.parent.grid_canvas.selected_npc.clear_real_path()
+            self.parent.grid_canvas.selected_npc.clear_real_route()
         else:
             g_logger.log_always(f'현재 선택된 npc가 없어여')            
 

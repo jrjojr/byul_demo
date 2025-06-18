@@ -13,7 +13,7 @@ C:/Users/critl/byul_world/include/internal/coord.h `
 
 python gen_cdef.py -o `
 C:/Users/critl/docs/byul_world_env/byul_world/wrapper/modules `
-C:/Users/critl/byul_world/include/internal/path.h `
+C:/Users/critl/byul_world/include/internal/route.h `
 
 python gen_cdef.py -o `
 C:/Users/critl/docs/byul_world_env/byul_world/wrapper/modules `

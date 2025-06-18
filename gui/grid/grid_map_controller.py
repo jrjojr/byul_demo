@@ -4,7 +4,7 @@ from grid.grid_cell import GridCell, CellStatus, CellFlag, TerrainType
 from grid.grid_map import GridMap
 
 from coord import c_coord
-from path import calc_direction
+from route import calc_direction
 from npc.npc import NPC
 
 from utils.log_to_panel import g_logger
@@ -161,7 +161,7 @@ class GridMapController(QObject):
                     old_cell.remove_flag(CellFlag.GOAL)
 
             new_cell.add_flag(CellFlag.GOAL)
-            self.clear_path()
+            self.clear_route()
             npc.move_to(coord)
         else:
             g_logger.log_always(f'{coord}는 장애물 좌표이다.')
@@ -171,9 +171,9 @@ class GridMapController(QObject):
         if new_cell:
             new_cell.add_flag(CellFlag.GOAL)
         npc.append_goal(coord)
-        self.find_path(npc)
+        self.find_route(npc)
 
-    def find_path(self, npc: NPC):
+    def find_route(self, npc: NPC):
         if g_logger.debug_mode:
             t0 = time.time()
         # npc.start_finding()
@@ -183,43 +183,43 @@ class GridMapController(QObject):
             elapsed = t1 - t0
             g_logger.log_debug(f'elapsed : {elapsed:.3f} msec')
 
-    def clear_path(self):
-        self.grid_map.clear_path_flags()
+    def clear_route(self):
+        self.grid_map.clear_route_flags()
 
     @Slot(NPC)
-    def to_real_path_cells(self, npc:NPC):
+    def to_real_route_cells(self, npc:NPC):
         if not npc.real_queue.empty():
             g_logger.log_debug('real_coord_큐에 쌓인 경로를 가져온다.')
-            npc.on_real_path_found()
+            npc.on_real_route_found()
 
-        path = npc.real_coord_list
-        for i in range(len(path)):
-            c = path[i]
+        route = npc.real_coord_list
+        for i in range(len(route)):
+            c = route[i]
             if (cell := self.grid_map.get(c.x, c.y)):
-                cell.add_flag(CellFlag.PATH)
-                # cell.path_dir = path.get_direction(i)
-                if i < len(path)-1:
-                    cell.path_dir = calc_direction(c, path[i+1])
+                cell.add_flag(CellFlag.ROUTE)
+                # cell.route_dir = route.get_direction(i)
+                if i < len(route)-1:
+                    cell.route_dir = calc_direction(c, route[i+1])
                 else:
-                    cell.path_dir = calc_direction(path[i-1], c)
+                    cell.route_dir = calc_direction(route[i-1], c)
         pass
 
     @Slot(NPC)
-    def to_proto_path_cells(self, npc:NPC):
+    def to_proto_route_cells(self, npc:NPC):
         if not npc.proto_queue.empty():
             g_logger.log_debug('to_proto_큐에 쌓인 경로를 가져온다.')            
-            npc.on_proto_path_found()
+            npc.on_proto_route_found()
             
-        path = npc.proto_coord_list
-        for i in range(len(path)):
-            c = path[i]
+        route = npc.proto_coord_list
+        for i in range(len(route)):
+            c = route[i]
             if (cell := self.grid_map.get(c.x, c.y)):
-                cell.add_flag(CellFlag.PATH)
-                # cell.path_dir = path.get_direction(i)
-                if i < len(path)-1:
-                    cell.path_dir = calc_direction(c, path[i+1])
+                cell.add_flag(CellFlag.ROUTE)
+                # cell.route_dir = route.get_direction(i)
+                if i < len(route)-1:
+                    cell.route_dir = calc_direction(c, route[i+1])
                 else:
-                    cell.path_dir = calc_direction(path[i-1], c)                    
+                    cell.route_dir = calc_direction(route[i-1], c)                    
 
         pass        
 
@@ -234,8 +234,8 @@ class GridMapController(QObject):
         cell.add_npc(npc.id)
 
         # 경로 제거
-        if cell.has_flag(CellFlag.PATH):
-            cell.remove_flag(CellFlag.PATH)
+        if cell.has_flag(CellFlag.ROUTE):
+            cell.remove_flag(CellFlag.ROUTE)
 
         # 목표 제거
         if cell.has_flag(CellFlag.GOAL):
@@ -250,7 +250,7 @@ class GridMapController(QObject):
     @Slot(c_coord)
     def on_move_to_started(self, npc: NPC, coord: c_coord):
         next_cell = self.get_cell(coord)
-        next_cell.add(CellFlag.PATH)
-        next_cell.path_dir = calc_direction(npc.start, coord)
+        next_cell.add(CellFlag.ROUTE)
+        next_cell.route_dir = calc_direction(npc.start, coord)
 
         pass

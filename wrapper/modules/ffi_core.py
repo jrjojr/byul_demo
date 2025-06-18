@@ -39,15 +39,15 @@ system = platform.system()
 root = Path.home() / "byul_world"
 
 if system == "Windows":
-    lib_name = "libpathfinder.dll"
+    lib_name = "libroutefinder.dll"
     lib_path = root / "bin" / lib_name
     os.add_dll_directory(str(lib_path.parent))  # 필수
     os.add_dll_directory(str(Path("C:/msys64/clang64/bin")))
 elif system == "Linux":
-    lib_name = "libpathfinder.so"
+    lib_name = "libroutefinder.so"
     lib_path = root / "lib" / lib_name
 elif system == "Darwin":  # macOS
-    lib_name = "libpathfinder.dylib"
+    lib_name = "libroutefinder.dylib"
     lib_path = root / "lib" / lib_name
 else:
     raise RuntimeError(f"❌ 지원되지 않는 플랫폼: {system}")

@@ -12,7 +12,7 @@ from grid.grid_cell import GridCell, CellStatus, CellFlag, TerrainType
 from grid.grid_map import GridMap
 from grid.grid_map_controller import GridMapController
 from coord import c_coord
-from path import PathDir
+from route import RouteDir
 import time
 from utils.log_to_panel import g_logger
 from utils.mouse_input_handler import MouseInputHandler
@@ -21,15 +21,7 @@ from npc.npc import NPC
 
 from pathlib import Path
 
-from config import IMAGES_PATH
-DEFAULT_OBSTACLE_PATH = IMAGES_PATH / 'byul_world_obstacle.png'
-DEFAULT_OBSTACLE_FOR_NPC_PATH = IMAGES_PATH / 'byul_world_obstacle_for_npc.png'
-
-DEFAULT_START_PATH = IMAGES_PATH / 'byul_world_start.png'
-DEFAULT_GOAL_PATH = IMAGES_PATH / 'byul_world_goal.png'
-DEFAULT_EMPTY_PATH = IMAGES_PATH / 'byul_world_empty.png'
-
-from utils.image_loader import load_image
+from utils.image_manager import ImageManager
 
 class GridCanvas(QWidget):
     '''GridCanvas는 사용자와의 상호 작용을 담당하며,
@@ -71,7 +63,6 @@ class GridCanvas(QWidget):
 
         self.cached_pixmap = None
         self.needs_redraw = False
-        self.icon_cache = {}
 
         self.default_empty_cell_color = QColor(30, 30, 30)
 
@@ -84,7 +75,6 @@ class GridCanvas(QWidget):
         self.wheel_timer = QTimer()
         self.wheel_timer.setSingleShot(True)
         self.wheel_timer.timeout.connect(self.change_grid_from_window)
-
 
         self.grid_changed.connect(self.grid_map.set_buffer_width_height)
         self.grid_map.buffer_changed.connect(self.request_redraw)
@@ -205,12 +195,7 @@ class GridCanvas(QWidget):
                 # painter.setBrush(cell.get_color())
                 # painter.drawRect(px, py, self.cell_size, self.cell_size)
 
-                icon_path = Path()
-
-                # if cell.terrain == TerrainType.MOUNTAIN:
-                #     icon_path = DEFAULT_OBSTACLE_PATH
-                #     pass
-
+                image = None
                 if cell.status == CellStatus.NPC:
                     if len(cell.npc_ids) > 0:
                         start = c_coord(cell.x, cell.y)
@@ -222,30 +207,26 @@ class GridCanvas(QWidget):
                         if npc.anim_started:
                             # 애니매이션이 시작되었다 기존에 셀에 그린 npc는 제거한다.
                             # 이미지를 그리지 않고 empty 이미지를 그린다.
-                            icon_path = DEFAULT_EMPTY_PATH
+                            image = ImageManager.get_empty_image()
                         else:
-                            icon_path = npc.get_image_path()
+                            image = npc.get_image()
                 # elif cell.status == CellStatus.EMPTY:
                 else:
-                    icon_path = DEFAULT_EMPTY_PATH
+                    image = ImageManager.get_empty_image()
 
                 if self.selected_npc:
                     if not cell.terrain in self.selected_npc.movable_terrain:
-                        icon_path = DEFAULT_OBSTACLE_FOR_NPC_PATH
+                        image = ImageManager.get_obstacle_for_npc_image()
 
-                if cell.has_flag(CellFlag.PATH):
-                    icon_path = cell.get_path_image()
+                    if cell.has_flag(CellFlag.ROUTE):
+                        image = self.selected_npc.get_route_image()
 
-                # elif cell.has_flag(CellFlag.START):
-                #     icon_path = DEFAULT_START_PATH
-                #     pass
-                if cell.has_flag(CellFlag.GOAL):
-                    icon_path = DEFAULT_GOAL_PATH
+                    if cell.has_flag(CellFlag.GOAL):
+                        image = ImageManager.get_goal_image()
 
-                if icon_path:
-                    icon = self.get_icon(icon_path)
+                if image:
                     painter.drawPixmap(
-                        px, py, self.cell_size, self.cell_size, icon)
+                        px, py, self.cell_size, self.cell_size, image)
 
                 if self.cell_size > self.min_size_for_text:
                     painter.setPen(pen_black)
@@ -278,11 +259,6 @@ class GridCanvas(QWidget):
             elapsed = (t1 - t0) * 1000
             QTimer.singleShot(0, lambda: self.draw_cells_ended.emit(t1))
             QTimer.singleShot(0, lambda: self.draw_cells_elapsed.emit(elapsed))
-
-    def get_icon(self, path):
-        if path not in self.icon_cache:
-            self.icon_cache[path] = QPixmap(path)
-        return self.icon_cache[path]
 
     # 나머지: 입력 처리, hover 표시, 클릭 처리 등은 원래 코드 유지
     def keyPressEvent(self, event):
@@ -530,7 +506,8 @@ class GridCanvas(QWidget):
                 npc = self.grid_map_ctr.npc_dict[npc_id]
                 if npc:
                     self.grid_map_ctr.remove_npc(npc_id)
-                    g_logger.log_always(f"NPC 제거됨: {npc_id} at ({coord.x},{coord.y})")
+                    g_logger.log_always(
+                        f"NPC 제거됨: {npc_id} at ({coord.x},{coord.y})")
 
         elif self.click_mode == "obstacle":
             g_logger.log_debug(f"장애물 추가: ({gx}, {gy})")            

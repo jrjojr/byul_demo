@@ -39,7 +39,6 @@ class GridViewer(QMainWindow):
         self.addDockWidget(Qt.RightDockWidgetArea, self.side_panel)
         self.side_panel.bind_canvas(self.grid_canvas)
 
-
         self.actions = Actions(self)
 
         self.menu_bar = MenuBar(self.actions, self)
@@ -95,18 +94,18 @@ class GridViewer(QMainWindow):
             self.grid_canvas._pressed_keys.clear()            
 
     def _handle_toolbar_command(self, command: str):
-        if command == "find_path":
-            self.grid_canvas.grid_map_ctr.find_path(self.grid_canvas.selected_npc)
-        elif command == "clear_path":
-            self.grid_canvas.grid_map_ctr.clear_path()
-        elif command == "view_proto_path":
-            self.grid_canvas.grid_map_ctr.to_proto_path_cells(self.grid_canvas.selected_npc)
-        elif command == "view_real_path":
-            self.grid_canvas.grid_map_ctr.to_real_path_cells(self.grid_canvas.selected_npc)            
-        elif command == "clear_proto_path":
-            self.grid_canvas.selected_npc.clear_proto_path()            
-        elif command == "clear_real_path":
-            self.grid_canvas.selected_npc.clear_real_path()                        
+        if command == "find_route":
+            self.grid_canvas.grid_map_ctr.find_route(self.grid_canvas.selected_npc)
+        elif command == "clear_route":
+            self.grid_canvas.grid_map_ctr.clear_route()
+        elif command == "view_proto_route":
+            self.grid_canvas.grid_map_ctr.to_proto_route_cells(self.grid_canvas.selected_npc)
+        elif command == "view_real_route":
+            self.grid_canvas.grid_map_ctr.to_real_route_cells(self.grid_canvas.selected_npc)            
+        elif command == "clear_proto_route":
+            self.grid_canvas.selected_npc.clear_proto_route()            
+        elif command == "clear_real_route":
+            self.grid_canvas.selected_npc.clear_real_route()                        
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)

@@ -43,7 +43,7 @@ C 기반 로직을 Python에서 직접 제어할 수 있도록 CFFI로 래핑되
 - **GridCanvas** – 셀 맵, 마우스 입력 / Grid display & input  
 - **MouseInputHandler** – 마우스 전용 처리기 / Mouse input handler  
 - **GridMap** – 지형 및 상태 저장 / Terrain & cell state manager  
-- **NPC** – 목표 설정, 경로 탐색 / Goal and pathfinding logic  
+- **NPC** – 목표 설정, 경로 탐색 / Goal and routefinding logic  
 - **BottomDockingPanel** – 로그/그래프 출력 / Log and performance panel  
 - **Toolbar / MenuBar** – 설정, 초기화, 전체화면 / Controls and config
 
@@ -60,7 +60,7 @@ C 기반 로직을 Python에서 직접 제어할 수 있도록 CFFI로 래핑되
 
 ## 🔮 향후 예정 기능 / Upcoming Features
 
-- 경로 시각화 개선 / Improved path display  
+- 경로 시각화 개선 / Improved route display  
 - NPC 상호작용 / NPC interaction (collision, cooperation)  
 - 애니메이션 향상 / Smooth animation  
 - 기억 기반 루틴 / Memory-based AI  

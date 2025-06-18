@@ -9,6 +9,8 @@ from grid.grid_canvas import GridCanvas
 
 from npc.npc import NPC
 
+from utils.memory_usage import get_memory_usage_mb
+
 class CanvasSettingWidget(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -82,6 +84,9 @@ class CanvasSettingWidget(QWidget):
         self.label_selected_npc = QLabel("-")
         layout.addWidget(self.label_selected_npc)
 
+        self.label_memory_usage = QLabel("_")
+        layout.addWidget(self.label_memory_usage)
+
         self.label_total_npc_len = QLabel("-")
         layout.addWidget(self.label_total_npc_len)
 
@@ -111,6 +116,10 @@ class CanvasSettingWidget(QWidget):
 
         self.label_total_npc_len.setText(
             f"총 NPC 수: {len(canvas.grid_map_ctr.npc_dict)}")
+        
+        mem_mb = get_memory_usage_mb()
+        mem_usage = f"메모리 사용량: {mem_mb:.1f} MB"
+        self.label_memory_usage.setText(mem_usage)        
 
 
         self.canvas.grid_changed.connect(self.on_grid_changed)
@@ -119,6 +128,9 @@ class CanvasSettingWidget(QWidget):
         self.canvas.cell_size_changed.connect(lambda val:
             self.field_cell_size.setText(str(val)))
         
+        self.canvas.grid_map_ctr.npc_added.connect(self.on_npc_added)
+        self.canvas.grid_map_ctr.npc_removed.connect(self.on_npc_removed)
+
         self.canvas.npc_selected.connect(self.on_npc_selected)
         self.canvas.interval_msec_changed.connect(
             self.on_interval_msec_changed)
@@ -171,7 +183,7 @@ class CanvasSettingWidget(QWidget):
 
     @Slot(NPC)
     def on_npc_selected(self, npc:NPC):
-        self.label_selected_npc.setText(f'npc.id : {npc.id}')
+        self.label_selected_npc.setText(f'현재 선택된 npc : {npc.id}')
 
     @Slot(int)
     def on_interval_msec_changed(self, msec:int):
@@ -181,4 +193,33 @@ class CanvasSettingWidget(QWidget):
         else:
             # 리스트에 없는 경우 강제로 텍스트 설정 (주의: 선택 상태 아님)
             self.combo_interval_msec.setEditText(str(msec))  # editable=False면 표시만
+
+    @Slot(str)
+    def on_npc_added(self, npc_id:str):
+        # 총 NPC 수 표시
+        npc_count = len(self.canvas.grid_map_ctr.npc_dict)
+        msg = f"""{npc_id} 추가됨 
+총 NPC 수: {npc_count}
+"""
+        self.label_total_npc_len.setText(msg)
+
+        # 메모리 사용량 측정
+        mem_mb = get_memory_usage_mb()
+        mem_usage = f"메모리 사용량: {mem_mb:.1f} MB"
+        self.label_memory_usage.setText(mem_usage)
+
+    @Slot(str)
+    def on_npc_removed(self, npc_id: str):
+        # 총 NPC 수 표시
+        npc_count = len(self.canvas.grid_map_ctr.npc_dict)
+        msg = f"""{npc_id} 제거됨 
+총 NPC 수: {npc_count}
+"""
+        self.label_total_npc_len.setText(msg)
+
+        # 메모리 사용량 측정
+        mem_mb = get_memory_usage_mb()
+        mem_usage = f"메모리 사용량: {mem_mb:.1f} MB"
+        self.label_memory_usage.setText(mem_usage)
+
 

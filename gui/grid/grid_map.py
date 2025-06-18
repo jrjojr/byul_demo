@@ -14,7 +14,7 @@ from map import c_map
 from coord import c_coord
 
 from utils.log_to_panel import g_logger
-from utils.path_changing_detector import PathChangingDetector
+from utils.route_changing_detector import RouteChangingDetector
 
 class GridMap(GridBlockManager):
     """
@@ -48,7 +48,7 @@ class GridMap(GridBlockManager):
         ox, oy = self.get_origin(self.center_x, self.center_y)
         self.request_load_block(ox, oy)
 
-        self.path_detector = PathChangingDetector()
+        self.route_detector = RouteChangingDetector()
 
     def _on_block_load_succeeded(self, key: tuple):
         super()._on_block_load_succeeded(key)
@@ -60,9 +60,9 @@ class GridMap(GridBlockManager):
         self.update_buffer_cells()
         
 
-    def clear_path_flags(self):
+    def clear_route_flags(self):
         for cell in self.buffer_cells.values():
-            cell.remove_flag(CellFlag.PATH)
+            cell.remove_flag(CellFlag.ROUTE)
 
     def update_buffer_cells(self):
         if g_logger.debug_mode:
@@ -307,7 +307,7 @@ class GridMap(GridBlockManager):
         )
 
         # 경로 변경 여부에 따른 이동 사유 결정
-        if self.path_detector.has_changed((cx, cy), (new_x, new_y)):
+        if self.route_detector.has_changed((cx, cy), (new_x, new_y)):
             self._move_reason = "changed"
         else:
             self._move_reason = "continue"

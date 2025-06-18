@@ -7,7 +7,7 @@ import platform
 from typing import Any
 
 from map import c_map
-from path import c_path
+from route import c_route
 from coord import c_coord
 from dstar_lite_pqueue import c_dstar_lite_pqueue
 from dstar_lite_key import c_dstar_lite_key
@@ -79,9 +79,9 @@ ffi.cdef("""
          
     const map dstar_lite_get_map ( const dstar_lite dsl );
          
-    const path dstar_lite_get_proto_path(const dstar_lite dsl);
+    const route dstar_lite_get_proto_route(const dstar_lite dsl);
          
-    const path dstar_lite_get_real_path(const dstar_lite dsl);
+    const route dstar_lite_get_real_route(const dstar_lite dsl);
          
     void dstar_lite_reset ( dstar_lite dsl );
 
@@ -99,7 +99,7 @@ gint dstar_lite_proto_compute_retry_count(dstar_lite dsl);
 
 gint dstar_lite_real_compute_retry_count(dstar_lite dsl);
 
-// proto path 생성할때 reconstruct_path한다. 여기에 사용하는 루프
+// proto route 생성할때 reconstruct_route한다. 여기에 사용하는 루프
 // 10x10에서 100은 오버고 10은 너무 작고 대충 40 정도면 되겠다.
 gint dstar_lite_get_reconstruct_max_retry(const dstar_lite dsl);
 void dstar_lite_set_reconstruct_max_retry(
@@ -144,16 +144,16 @@ gint dstar_lite_reconstruct_retry_count(dstar_lite dsl);
     void dstar_lite_update_vertex_auto_range ( 
          const dstar_lite dsl , const coord s );
 
-    void dstar_lite_compute_shortest_path ( dstar_lite dsl );
-    path dstar_lite_reconstruct_path ( const dstar_lite dsl );
+    void dstar_lite_compute_shortest_route ( dstar_lite dsl );
+    route dstar_lite_reconstruct_route ( const dstar_lite dsl );
          
-    path dstar_lite_find ( const dstar_lite dsl );
+    route dstar_lite_find ( const dstar_lite dsl );
          
     void dstar_lite_find_proto(const dstar_lite dsl);
 
     void dstar_lite_find_loop(const dstar_lite dsl);
                   
-    void dstar_lite_update_vertex_by_path ( dstar_lite dsl , path p );
+    void dstar_lite_update_vertex_by_route ( dstar_lite dsl , route p );
          
     // 루프를 강제종료한다.
     void dstar_lite_force_quit(dstar_lite dsl);         
@@ -349,7 +349,7 @@ class c_dstar_lite:
 
     @property
     def reconstruct_max_retry(self):
-        # // proto path 생성할때 reconstruct_path한다. 여기에 사용하는 루프
+        # // proto route 생성할때 reconstruct_route한다. 여기에 사용하는 루프
         # // 10x10에서 100은 오버고 10은 너무 작고 대충 40 정도면 되겠다.
         # gint dstar_lite_get_reconstruct_max_retry(const dstar_lite dsl);
         return C.dstar_lite_get_reconstruct_max_retry(self.ptr())
@@ -472,14 +472,14 @@ class c_dstar_lite:
     def update_vertex_auto_range(self, s:c_coord):
         C.dstar_lite_update_vertex_auto_range(self._c, s.ptr())
 
-    def compute_shortest_path(self):
-        C.dstar_lite_compute_shortest_path(self._c)
+    def compute_shortest_route(self):
+        C.dstar_lite_compute_shortest_route(self._c)
 
-    def reconstruct_path(self):
-        return c_path(raw_ptr=C.dstar_lite_reconstruct_path(self._c))
+    def reconstruct_route(self):
+        return c_route(raw_ptr=C.dstar_lite_reconstruct_route(self._c))
 
     def find(self):
-        return c_path(raw_ptr=C.dstar_lite_find(self._c))
+        return c_route(raw_ptr=C.dstar_lite_find(self._c))
 
     def find_proto(self):
         # void dstar_lite_find_proto(const dstar_lite dsl);
@@ -489,8 +489,8 @@ class c_dstar_lite:
         # void dstar_lite_find_loop(const dstar_lite dsl);
         C.dstar_lite_find_loop(self.ptr())
 
-    def update_vertex_by_path(self, p:c_path):
-        C.dstar_lite_update_vertex_by_path(self._c, p.ptr())
+    def update_vertex_by_route(self, p:c_route):
+        C.dstar_lite_update_vertex_by_route(self._c, p.ptr())
 
     def block_coord(self, x, y):
         self.map.block(x, y)
@@ -498,13 +498,13 @@ class c_dstar_lite:
     def unblock_coord(self, x, y):
         self.map.unblock(x, y)        
 
-    def get_proto_path(self):
-        # const path dstar_lite_get_proto_path(const dstar_lite dsl);
-        return c_path(raw_ptr=C.dstar_lite_get_proto_path(self.ptr()))
+    def get_proto_route(self):
+        # const route dstar_lite_get_proto_route(const dstar_lite dsl);
+        return c_route(raw_ptr=C.dstar_lite_get_proto_route(self.ptr()))
     
-    def get_real_path(self):
-        # const path dstar_lite_get_real_path(const dstar_lite dsl);
-        return c_path(raw_ptr=C.dstar_lite_get_real_path(self.ptr()))    
+    def get_real_route(self):
+        # const route dstar_lite_get_real_route(const dstar_lite dsl);
+        return c_route(raw_ptr=C.dstar_lite_get_real_route(self.ptr()))    
 
     def force_quit(self):    
         # // 루프를 강제종료한다.

@@ -4,7 +4,7 @@ import os
 import platform
 
 from dstar_lite import c_dstar_lite
-from path import c_path
+from route import c_route
 from map import c_map
 from coord import c_coord
 from dstar_lite_pqueue import c_dstar_lite_pqueue
@@ -16,8 +16,8 @@ ffi.cdef("""
     void print_all_dsl_internal ( const map m , const coord start , const coord goal , float km , GHashTable * g_table , GHashTable * rhs_table , dstar_lite_pqueue frontier );
     void print_all_dsl ( const dstar_lite dsl );
     void dsl_print_ascii_only_map ( const dstar_lite dsl );
-    void dsl_print_ascii ( const dstar_lite dsl , const path p );
-    void dsl_print_ascii_uv ( const dstar_lite dsl , const path p );
+    void dsl_print_ascii ( const dstar_lite dsl , const route p );
+    void dsl_print_ascii_uv ( const dstar_lite dsl , const route p );
 """)
 
 class c_dstar_lite_utils:
@@ -57,9 +57,9 @@ class c_dstar_lite_utils:
         C.dsl_print_ascii_only_map(dsl.ptr())
 
     @staticmethod
-    def print_ascii(dsl:c_dstar_lite, p:c_path):
+    def print_ascii(dsl:c_dstar_lite, p:c_route):
         C.dsl_print_ascii(dsl.ptr(), p.ptr())
 
     @staticmethod
-    def print_ascii_uv(dsl:c_dstar_lite, p:c_path):
+    def print_ascii_uv(dsl:c_dstar_lite, p:c_route):
         C.dsl_print_ascii_uv(dsl.ptr(), p.ptr())

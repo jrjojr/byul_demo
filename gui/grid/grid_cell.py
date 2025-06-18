@@ -2,23 +2,10 @@ from enum import Enum, Flag, auto
 from typing import Optional, Any
 from PySide6.QtGui import QColor
 
-from path import PathDir
-
-from utils.image_loader import load_image
+from route import RouteDir
 
 import random
 import string
-
-from config import IMAGES_PATH
-DEFAULT_PATH_UN_PATH = IMAGES_PATH / 'path/byul_world_path_un.png'
-DEFAULT_PATH_RI_PATH = IMAGES_PATH / 'path/byul_world_path_ri.png'
-DEFAULT_PATH_TR_PATH = IMAGES_PATH / 'path/byul_world_path_tr.png'
-DEFAULT_PATH_TO_PATH = IMAGES_PATH / 'path/byul_world_path_to.png'
-DEFAULT_PATH_TL_PATH = IMAGES_PATH / 'path/byul_world_path_tl.png'
-DEFAULT_PATH_LE_PATH = IMAGES_PATH / 'path/byul_world_path_le.png'
-DEFAULT_PATH_DL_PATH = IMAGES_PATH / 'path/byul_world_path_dl.png'
-DEFAULT_PATH_DO_PATH = IMAGES_PATH / 'path/byul_world_path_do.png'
-DEFAULT_PATH_DR_PATH = IMAGES_PATH / 'path/byul_world_path_dr.png'
 
 class CellStatus(Enum):
     EMPTY = 0
@@ -28,7 +15,7 @@ class CellFlag(Flag):
     NONE = 0
     START = auto()
     GOAL = auto()
-    PATH = auto()
+    ROUTE = auto()
     VISITED = auto()
 
 class TerrainType(Enum):
@@ -48,7 +35,7 @@ class GridCell:
         self.status: CellStatus = status
         self.flags: CellFlag = CellFlag.NONE
         self.npc_ids: list[str] = []
-        self.path_dir: PathDir = PathDir.UNKNOWN
+        self.route_dir: RouteDir = RouteDir.UNKNOWN
 
         self.terrain: TerrainType = terrain
         self.light_level: float = 1.0
@@ -84,7 +71,7 @@ class GridCell:
         self.flags = CellFlag.NONE
 
     def get_priority_flag(self) -> Optional[CellFlag]:
-        for f in [CellFlag.START, CellFlag.GOAL, CellFlag.PATH, CellFlag.VISITED]:
+        for f in [CellFlag.START, CellFlag.GOAL, CellFlag.ROUTE, CellFlag.VISITED]:
             if f in self.flags:
                 return f
         return None
@@ -98,7 +85,7 @@ class GridCell:
             return QColor(0, 255, 0)
         elif flag == CellFlag.GOAL:
             return QColor(255, 0, 0)
-        elif flag == CellFlag.PATH:
+        elif flag == CellFlag.ROUTE:
             return QColor(0, 0, 255)
         elif flag == CellFlag.VISITED:
             return QColor(180, 180, 180)
@@ -114,7 +101,7 @@ class GridCell:
             return "S"
         elif flag == CellFlag.GOAL:
             return "G"
-        elif flag == CellFlag.PATH:
+        elif flag == CellFlag.ROUTE:
             return "*"
         return ""
 
@@ -132,7 +119,7 @@ t:{self.terrain.name},
             "status": self.status.value,
             "flags": self.flags.value,
             "npc_ids": self.npc_ids,
-            "path_dir": self.path_dir.value,
+            "route_dir": self.route_dir.value,
             "terrain": self.terrain.value,
             "light_level": self.light_level,
             "zone_id": self.zone_id,
@@ -144,38 +131,38 @@ t:{self.terrain.name},
             "custom_data": self.custom_data
         }
 
-    def get_path_image(self):
-        if self.has_flag(CellFlag.PATH):
-            path_dir = self.path_dir
+    def get_route_image(self):
+        if self.has_flag(CellFlag.ROUTE):
+            route_dir = self.route_dir
 
-            if path_dir == PathDir.RIGHT:
-                icon_path = DEFAULT_PATH_RI_PATH
+            if route_dir == RouteDir.RIGHT:
+                icon_path = DEFAULT_ROUTE_RI_PATH
                 pass
-            elif path_dir == PathDir.TOP_RIGHT:
-                icon_path = DEFAULT_PATH_TR_PATH
+            elif route_dir == RouteDir.TOP_RIGHT:
+                icon_path = DEFAULT_ROUTE_TR_PATH
                 pass
-            elif path_dir == PathDir.TOP:
-                icon_path = DEFAULT_PATH_TO_PATH
+            elif route_dir == RouteDir.TOP:
+                icon_path = DEFAULT_ROUTE_TO_PATH
                 pass
-            elif path_dir == PathDir.TOP_LEFT:
-                icon_path = DEFAULT_PATH_TL_PATH
+            elif route_dir == RouteDir.TOP_LEFT:
+                icon_path = DEFAULT_ROUTE_TL_PATH
                 pass
-            elif path_dir == PathDir.LEFT:
-                icon_path = DEFAULT_PATH_LE_PATH
+            elif route_dir == RouteDir.LEFT:
+                icon_path = DEFAULT_ROUTE_LE_PATH
                 pass
-            elif path_dir == PathDir.DOWN_LEFT:
-                icon_path = DEFAULT_PATH_DL_PATH
+            elif route_dir == RouteDir.DOWN_LEFT:
+                icon_path = DEFAULT_ROUTE_DL_PATH
                 pass
-            elif path_dir == PathDir.DOWN:
-                icon_path = DEFAULT_PATH_DO_PATH
+            elif route_dir == RouteDir.DOWN:
+                icon_path = DEFAULT_ROUTE_DO_PATH
                 pass
-            elif path_dir == PathDir.DOWN_RIGHT:
-                icon_path = DEFAULT_PATH_DR_PATH
+            elif route_dir == RouteDir.DOWN_RIGHT:
+                icon_path = DEFAULT_ROUTE_DR_PATH
                 pass
             else:
                 # 알려진 방향이 아니다. 기본값
                 # icon_path = None
-                icon_path = DEFAULT_PATH_UN_PATH
+                icon_path = DEFAULT_ROUTE_UN_PATH
                 pass 
         # return load_image(icon_path)
         return icon_path
@@ -190,7 +177,7 @@ t:{self.terrain.name},
         )
         cell.flags = CellFlag(data.get("flags", 0))
         cell.npc_ids = data.get("npc_ids", [])
-        cell.path_dir = PathDir(data.get("path_dir", 0))
+        cell.route_dir = RouteDir(data.get("route_dir", 0))
         cell.light_level = data.get("light_level", 1.0)
         cell.zone_id = data.get("zone_id")
         cell.items = data.get("items", [])
