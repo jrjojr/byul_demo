@@ -2,9 +2,11 @@ from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QPushButton, QHBoxLayout,
     QFileDialog, QMessageBox, QSpinBox, QLabel
 )
-from ui.loop_time_graph_widget import LoopTimeGraphWidget  # 경로 조정 필요
+from ui.time_graph_widget import TimeGraphWidget  # 경로 조정 필요
 
-class LoopTimeGraphPanel(QWidget):
+from grid.grid_canvas import GridCanvas
+
+class TimeGraphPanel(QWidget):
     """
     루프 시간 그래프 패널:
     - pyqtgraph 기반 실시간 그래프
@@ -14,7 +16,7 @@ class LoopTimeGraphPanel(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
 
-        self.graph_widget = LoopTimeGraphWidget()
+        self.graph_widget = TimeGraphWidget()
 
         # 버튼들
         self.reset_button = QPushButton("리셋")
@@ -72,36 +74,6 @@ class LoopTimeGraphPanel(QWidget):
             except Exception as e:
                 QMessageBox.critical(self, "저장 실패", str(e))
 
-    # def _on_load(self):
-    #     file_path, _ = QFileDialog.getOpenFileName(
-    #         self, "그래프 불러오기", "", 
-    #         "CSV Files (*.csv);;JSON Files (*.json)"
-    #     )
-    #     if file_path:
-    #         try:
-    #             if file_path.endswith(".csv"):
-    #                 self.graph_widget.load_from_csv(file_path)
-    #             else:
-    #                 self.graph_widget.load_from_json(file_path)
-
-    #             # 범위 자동 설정
-    #             if self.graph_widget.samples:
-    #                 last = self.graph_widget.samples[-1].step
-    #                 self.end_spin.setValue(last)
-
-    #         except Exception as e:
-    #             QMessageBox.critical(self, "불러오기 실패", str(e))
-
-    # def _make_focus_event(self, spinbox):
-    #     def _on_focus(event):
-    #         max_step = self.graph_widget.samples[-1].step \
-    #             if self.graph_widget.samples else 0
-            
-    #         spinbox.setMaximum(max_step)
-    #         # 원래 focusInEvent도 호출해줘야 하므로:
-    #         QSpinBox.focusInEvent(spinbox, event)
-    #     return _on_focus
-
     def _make_focus_event(self, spinbox):
         def _on_focus(event):
             max_index = len(self.graph_widget.samples)
@@ -126,3 +98,6 @@ class LoopTimeGraphPanel(QWidget):
 
             except Exception as e:
                 QMessageBox.critical(self, "불러오기 실패", str(e))
+
+    def bind_canvas(self, grid_canvas:GridCanvas):
+        self.graph_widget.bind_canvas(grid_canvas)

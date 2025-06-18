@@ -68,7 +68,7 @@ class GridCell:
     def remove_npc(self, npc_id: str):
         if npc_id in self.npc_ids:
             self.npc_ids.remove(npc_id)
-        if not self.npc_ids:
+        if len(self.npc_ids) <= 0:
             self.status = CellStatus.EMPTY
 
     def has_flag(self, flag: CellFlag) -> bool:

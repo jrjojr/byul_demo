@@ -1,7 +1,8 @@
 from PySide6.QtWidgets import QDockWidget, QTabWidget
 from PySide6.QtCore import Qt
 
-from grid.grid_settings import GridSettingsWidget  # 외부 정의된 설정 위젯
+from grid.canvas_setting_widget import CanvasSettingWidget  # 외부 정의된 설정 위젯
+from grid.grid_canvas import GridCanvas
 
 class SideDockingPanel(QDockWidget):
     def __init__(self, parent=None):
@@ -17,18 +18,25 @@ class SideDockingPanel(QDockWidget):
         self.setWidget(self.tabs)
 
         # 탭 추가: GridCanvas 관련 설정
-        self.canvas_settings_widget = GridSettingsWidget()
-        self.tabs.addTab(self.canvas_settings_widget, "GridCanvas")
+        self.canvas_setting_widget = CanvasSettingWidget()
+        self.tabs.addTab(self.canvas_setting_widget, "GridCanvas")
 
-    def bind_canvas(self, canvas):
-        """GridCanvas 객체를 설정 위젯에 연결"""
-        self.canvas = canvas        
-        self.canvas_settings_widget.bind_canvas(canvas)
-        self.canvas.grid_changed.connect(self.on_canvas_grid_changed)        
+        self.tabs.setTabsClosable(True)
+        self.tabs.tabCloseRequested.connect(self.on_tab_close_requested)
+        
+    def bind_canvas(self, canvas:GridCanvas):
+        self.canvas_setting_widget.bind_canvas(canvas)
 
-    def refresh_all(self):
-        """외부에서 수동으로 전체 패널 갱신 요청 시"""
-        self.canvas_settings_widget.refresh()
+    def check_auto_hide(self):
+        if self.tabs.count() == 0:
+            self.setVisible(False)  # 또는 self.parent().removeDockWidget(self)
 
-    def on_canvas_grid_changed(self, grid_width:int, grid_height:int):
-        self.canvas_settings_widget.refresh()
+    def on_tab_close_requested(self, index: int):
+        widget = self.tabs.widget(index)
+
+        # 내부 위젯 참조 제거 (옵션)
+        if widget == self.canvas_setting_widget:
+            self.canvas_setting_widget = None
+
+        self.tabs.removeTab(index)
+        self.check_auto_hide()

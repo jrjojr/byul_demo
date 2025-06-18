@@ -44,6 +44,7 @@ class GridMap(GridBlockManager):
 
         self.center_x =0
         self.center_y = 0
+        
         ox, oy = self.get_origin(self.center_x, self.center_y)
         self.request_load_block(ox, oy)
 
@@ -57,6 +58,7 @@ class GridMap(GridBlockManager):
             self.loading_block_ended.emit(t0)
 
         self.update_buffer_cells()
+        
 
     def clear_path_flags(self):
         for cell in self.buffer_cells.values():

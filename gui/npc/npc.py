@@ -426,12 +426,13 @@ start_delay_sec : {self.start_delay_sec}''')
     def add_changed_coord(self, coord_c: c_coord):
         self._changed_q.put(coord_c)
 
-    # def remove_changed_coord(self, coord_c: c_coord):
-    #     # with self._changed_lock:
-    #     try:
-    #         self._changed_q.remove(coord_c)
-    #     except ValueError:
-    #         pass
+    def clear_changed_coords(self):
+        try:
+            while not self._changed_q.empty():
+                dummy = self._changed_q.get_nowait()
+        except Empty:
+            g_logger.log_debug('모두 비웠다 changed_coords를...')
+            pass
 
     def _changed_coords_cb(self, userdata):
         g_logger.log_debug_threadsafe('_changed_coords_cb 호출됨')

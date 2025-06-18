@@ -1,4 +1,4 @@
-from PySide6.QtCore import Qt, QPoint, QObject, Slot
+from PySide6.QtCore import Qt, QPoint, QObject, Slot, Signal
 
 from grid.grid_cell import GridCell, CellStatus, CellFlag, TerrainType
 from grid.grid_map import GridMap
@@ -11,11 +11,14 @@ from utils.log_to_panel import g_logger
 import time
 
 class GridMapController(QObject):
+    npc_added = Signal(str)
+    npc_removed = Signal(str)
+
     def __init__(self, grid_map: GridMap, parent=None):
         super().__init__()
         self.grid_map = grid_map
         self.parent = parent
-        self.npc_dict: dict[NPC] = dict()
+        self.npc_dict: dict[str, NPC] = dict()
 
     def has_npc(self, npc_id):
         if npc_id in self.npc_dict:
@@ -43,6 +46,8 @@ class GridMapController(QObject):
 
         self.place_npc(npc, npc.start)
 
+        self.npc_added.emit(npc_id)
+
 
     def remove_npc(self, npc_id):
         # npc가 존재하는지 확인한다
@@ -55,8 +60,14 @@ class GridMapController(QObject):
         cell = self.get_cell(npc.start)
         cell.remove_npc(npc_id)
 
+        # 셀의 이미지를 제거한다.
+        # 기존의 테란타입에 맞는 이미지를 찾아서 설정한다.
+        
+
         # npc 메모리 해제
-        npc.close()
+        # npc.close()
+        npc = None
+        self.npc_removed.emit(npc_id)
 
         pass
 

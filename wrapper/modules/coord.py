@@ -86,7 +86,7 @@ class c_coord:
         return C.coord_hash(self._c)
     
     def __del__(self):
-        # C.coord_free(self._c)
+        # self.close()
         pass
 
     def close(self):

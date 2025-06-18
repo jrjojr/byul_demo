@@ -35,6 +35,8 @@ class GridCanvas(QWidget):
     '''GridCanvas는 사용자와의 상호 작용을 담당하며,
        오프스크린 렌더링을 통해 성능을 최적화한다.'''
     grid_changed = Signal(int, int)
+    center_changed = Signal(int, int)
+
     cell_size_changed = Signal(int)
     key_pressed = Signal()
     key_released = Signal()
@@ -44,15 +46,19 @@ class GridCanvas(QWidget):
     draw_cells_ended = Signal(float)
 
     npc_selected = Signal(NPC)
+    click_mode_changed = Signal(str)
 
-    def __init__(self, grid_map: GridMap, msec_per_frame=30, parent=None):
+    interval_msec_changed = Signal(int)
+
+    def __init__(self, block_size=200, interval_msec=30, min_px=30, parent=None):
         super().__init__(parent)
 
-        self.grid_map = grid_map
+        self.grid_map = GridMap(block_size)
         self.grid_map_ctr = GridMapController(self.grid_map, parent=self)
 
-        self.cell_size = 80
-        self.min_px = 20
+        # self.cell_size = 80
+        self.set_cell_size(80)
+        self.min_px = min_px
 
         self.min_size_for_text = 50
         self.grid_width = 11
@@ -69,15 +75,17 @@ class GridCanvas(QWidget):
 
         self.default_empty_cell_color = QColor(30, 30, 30)
 
+        self.interval_msec = interval_msec
         self.logic_timer = QTimer(self)
         self.logic_timer.timeout.connect(self._tick)
-        self.logic_timer.start(msec_per_frame)
+        self.set_interval_msec(interval_msec)
+        self.logic_timer.start()
 
         self.wheel_timer = QTimer()
         self.wheel_timer.setSingleShot(True)
         self.wheel_timer.timeout.connect(self.change_grid_from_window)
 
-        self.change_grid_from_window()
+
         self.grid_changed.connect(self.grid_map.set_buffer_width_height)
         self.grid_map.buffer_changed.connect(self.request_redraw)
 
@@ -90,12 +98,20 @@ class GridCanvas(QWidget):
         self.mouse_handler.double_clicked.connect(self._on_dbl_clicked)
         self.last_mouse_pos = QPoint()
 
-        # self.cell_size_changed.connect(self.grid_map_ctr.npc.set_cell_size)
-        self.cell_size_changed.connect(self.on_cell_size_changed)
         self.set_cell_size(80)
 
         self.npc_selected.connect(self.on_npc_selected)
         self.selected_npc = None
+
+    @Slot(int)
+    def set_interval_msec(self, msec: int):
+        msec = max(0, msec)  # 음수면 0으로 고정
+        self._interval_msec = msec
+
+        if self.logic_timer is not None:
+            self.logic_timer.setInterval(msec)
+
+        self.interval_msec_changed.emit(msec)
 
     def request_redraw(self):
         self.needs_redraw = True
@@ -103,15 +119,15 @@ class GridCanvas(QWidget):
     def showEvent(self, event):
         super().showEvent(event)
         coord = c_coord(0, 0)
-        QTimer.singleShot(1000, lambda: self.spawn_npc(coord))
+        QTimer.singleShot(1000, lambda: self.add_npc(coord))
         self.request_redraw()
 
-    def spawn_npc(self, coord:c_coord):
+    def add_npc(self, coord:c_coord):
         npc_id = NPC.generate_random_npc_id()
         self.grid_map_ctr.add_npc(npc_id, coord)
         npc = self.grid_map_ctr.get_npc(npc_id)
         if npc is None:
-            g_logger.log_debug(f'spawn_npc({npc_id}) 실패했다')
+            g_logger.log_debug(f'add_npc({npc_id}) 실패했다')
 
         if self.selected_npc is None:
             self.selected_npc = npc
@@ -209,6 +225,7 @@ class GridCanvas(QWidget):
                             icon_path = DEFAULT_EMPTY_PATH
                         else:
                             icon_path = npc.get_image_path()
+                # elif cell.status == CellStatus.EMPTY:
                 else:
                     icon_path = DEFAULT_EMPTY_PATH
 
@@ -341,7 +358,9 @@ class GridCanvas(QWidget):
                                min(self.width(), self.height())))
         
         self.set_cell_size(int(new_size))
+
         self.wheel_timer.start(50)
+
         # self.update()
 
     def convert_pos_grid_to_win(self, cx, cy):
@@ -473,9 +492,16 @@ class GridCanvas(QWidget):
         
         return self.get_win_pos_at_grid(gx, gy)
     
+    @Slot(int)
     def set_cell_size(self, cell_size:int):
         self.cell_size = cell_size
+        for npc in self.grid_map_ctr.npc_dict.values():
+            npc.set_cell_size(cell_size)
+
+        self.change_grid_from_window()
+
         self.cell_size_changed.emit(cell_size)
+
 
     def _handle_left_click(self, pos:QPoint):
         x = pos.x()
@@ -494,8 +520,8 @@ class GridCanvas(QWidget):
             else:
                 g_logger.log_always("⚠️ 해당 셀에 NPC가 없습니다.")
         
-        elif self.click_mode == "spawn_npc":
-            self.spawn_npc(coord)
+        elif self.click_mode == "add_npc":
+            self.add_npc(coord)
             g_logger.log_always(f"NPC 추가됨: at ({coord.x},{coord.y})")
 
         elif self.click_mode == "remove_npc":
@@ -549,9 +575,11 @@ class GridCanvas(QWidget):
             else:
                 g_logger.log_always("⚠️ 현재 선택된 NPC가 없습니다.")
 
+    @Slot(str)
     def set_click_mode(self, mode: str):
         g_logger.log_debug(f"🛠️ 클릭 모드 전환됨: {mode}")        
         self.click_mode = mode
+        self.click_mode_changed.emit(mode)
 
     def move_from_keys(self, pressed_keys):
         # g_logger.log_debug(f'move_From_keys는 동작하나? : {pressed_keys}')
@@ -566,20 +594,11 @@ class GridCanvas(QWidget):
             dy += 1
         self.grid_map.move_center(dx, dy)
     
-    @Slot(int, int)
-    def on_center_change(self, x:int, y:int):
-        pass
-
     def get_first_npc_in_cell(self, cell: GridCell) -> NPC | None:
         if not cell.npc_ids:
             return None
         first_id = cell.npc_ids[0]
         return self.grid_map_ctr.npc_dict.get(first_id)
-
-    @Slot(int)
-    def on_cell_size_changed(self, cell_size: int):
-        for npc in self.grid_map_ctr.npc_dict.values():
-            npc.set_cell_size(cell_size)
 
     @Slot(NPC)
     def on_npc_selected(self, npc:NPC):

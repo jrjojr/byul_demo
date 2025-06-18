@@ -31,3 +31,6 @@ secrets.txt
 # vscode 환경 폴더
 .vscode/
 .venv/
+
+# 노트.org
+docs/

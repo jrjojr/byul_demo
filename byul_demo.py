@@ -10,15 +10,13 @@ from PySide6.QtWidgets import QApplication, QMainWindow
 from PySide6.QtGui import QCursor, QKeyEvent
 from PySide6.QtCore import QTimer, Qt, QEvent
 
-from grid.grid_map import GridMap
 from grid.grid_canvas import GridCanvas
 
-from ui.menu_actions import MenuBar
+from ui.menu_bar import MenuBar
 from ui.side_panel import SideDockingPanel
 from ui.bottom_panel import BottomDockingPanel
 from ui.toolbar_panel import ToolbarPanel
-
-from utils.log_to_panel import g_logger
+from ui.actions import Actions
 
 class GridViewer(QMainWindow):
     def __init__(self):
@@ -29,31 +27,26 @@ class GridViewer(QMainWindow):
             self._on_focus_window_changed)
 
         # === Core Components ===
-        self.grid_map = GridMap()
-        self.grid_canvas = GridCanvas(self.grid_map, parent=self)
+        self.grid_canvas = GridCanvas(parent=self, min_px=10)
         self.setCentralWidget(self.grid_canvas)
 
-        # === Dock Panels ===
+        # 바톰 패널
         self.bottom_panel = BottomDockingPanel(self)
         self.addDockWidget(Qt.BottomDockWidgetArea, self.bottom_panel)
         
-        g_logger.log_emitted.connect(self.bottom_panel.console_widget.log)
-
+        # 사이드 패널
         self.side_panel = SideDockingPanel(self)
         self.addDockWidget(Qt.RightDockWidgetArea, self.side_panel)
+        self.side_panel.bind_canvas(self.grid_canvas)
 
-        self.setMenuBar(MenuBar(self))
-        self.menuBar().action_loopgraph_tab.triggered.connect(
-            self.on_loopgraph_tab_toggled
-        )
-        self.menuBar()._action_fullscreen.setChecked(False)
 
-        self.toolbar_panel = ToolbarPanel(self)
+        self.actions = Actions(self)
+
+        self.menu_bar = MenuBar(self.actions, self)
+        self.setMenuBar(self.menu_bar)
+
+        self.toolbar_panel = ToolbarPanel(self.actions, self)
         self.addToolBar(Qt.TopToolBarArea, self.toolbar_panel)
-        # 툴바에 콜백 연결
-        self.toolbar_panel.set_command_callback(self._handle_toolbar_command)
-        self.toolbar_panel.set_mode_callback(
-            self.grid_canvas.set_click_mode)        
 
         # === UI Finalization ===
         self.bottom_panel.console_widget.log("✅ Console log test")
@@ -69,16 +62,6 @@ class GridViewer(QMainWindow):
 (screen_geometry.width() - size.width()) // 2 + screen_geometry.x(),
 (screen_geometry.height() - size.height()) // 2 + screen_geometry.y()
         )
-
-    def on_loopgraph_tab_toggled(self, checked: bool):
-        if checked:
-            self.bottom_panel.add_loop_graph_tab()
-            self.bottom_panel.loop_graph_widget.resume()
-            self.bottom_panel.loop_graph_widget.bind_canvas(self.grid_canvas)
-        else:
-            if self.bottom_panel.loop_graph_widget:
-                self.bottom_panel.loop_graph_widget.pause()
-            self.bottom_panel.remove_loop_graph_tab()
 
     def toggle_fullscreen(self):
         if self.isFullScreen():

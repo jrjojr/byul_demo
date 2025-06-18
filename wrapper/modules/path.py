@@ -329,9 +329,7 @@ class c_path:
         return self._p
 
     def __del__(self):
-        # if hasattr(self, "_p") and self._p:
-        #     C.path_free(self._p)
-        #     self._p = None
+        # self.close()
         pass
 
     def close(self):

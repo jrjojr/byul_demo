@@ -8,6 +8,8 @@ from utils.elapsed_msec_series import ElapsedSeries
 
 import pandas as pd
 
+from grid.grid_canvas import GridCanvas
+
 
 class IndexLabelAxisItem(AxisItem):
     def __init__(self, *args, **kwargs):
@@ -17,7 +19,7 @@ class IndexLabelAxisItem(AxisItem):
         return [str(int(v)) for v in values]
 
 
-class LoopTimeGraphWidget(pg.PlotWidget):
+class TimeGraphWidget(pg.PlotWidget):
     def __init__(self, parent=None, update_interval_ms=250,
                  step_interval_sec=1.0, sec_range=10):
         axis = IndexLabelAxisItem(orientation='bottom')
@@ -165,7 +167,7 @@ class LoopTimeGraphWidget(pg.PlotWidget):
         self.hover_text.setPos(mouse_point.x(), mouse_point.y())
         self.hover_text.setText(f"Step {x}\n{y:.3f} ms")
 
-    def bind_canvas(self, grid_canvas):
+    def bind_canvas(self, grid_canvas:GridCanvas):
         """GridCanvas에서 draw_cells, move_center 이벤트를 바인딩하고 시리즈 등록"""
         if self._canvas_bound:
             return

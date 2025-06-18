@@ -109,7 +109,7 @@ class c_map:
         return self._m
 
     def __del__(self):
-        # C.map_free(self._m)
+        # self.close()
         pass
 
     def close(self):
