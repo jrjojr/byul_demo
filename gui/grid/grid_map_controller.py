@@ -50,26 +50,28 @@ class GridMapController(QObject):
 
 
     def remove_npc(self, npc_id):
-        # npc가 존재하는지 확인한다
+        # npc 존재 여부 확인
         if not self.has_npc(npc_id):
             g_logger.log_debug(f'npc({npc_id})가 존재하지 않아서 종료한다.')
-            return 
-        
-        # 셀에서 npc 제거
-        npc:NPC = self.npc_dict[npc_id]
+            return
+
+        # npc 객체 추출
+        npc: NPC = self.npc_dict.pop(npc_id)
+
+        # 현재 위치 기준 셀에서 npc 제거
         cell = self.get_cell(npc.start)
-        cell.remove_npc(npc_id)
+        if cell:
+            cell.remove_npc(npc_id)
+        else:
+            g_logger.log_debug(
+                f'npc({npc_id})의 위치 셀을 찾을 수 없음: {npc.start}')
 
-        # 셀의 이미지를 제거한다.
-        # 기존의 테란타입에 맞는 이미지를 찾아서 설정한다.
-        
+        # 관련 리소스 해제 (비동기 스레드 종료 등 추가 처리 필요 시 여기에)
+        npc.close()
 
-        # npc 메모리 해제
-        # npc.close()
-        npc = None
+        # 시그널 전파
         self.npc_removed.emit(npc_id)
 
-        pass
 
     def get_cell(self, coord: c_coord) -> GridCell:
         return self.grid_map.get(coord.x, coord.y)

@@ -502,9 +502,12 @@ class GridCanvas(QWidget):
 
         elif self.click_mode == "remove_npc":
             if cell.npc_ids:
-                npc_id = cell.npc_ids[0]  # 임시로 첫 NPC만 제거
+                npc_id = cell.npc_ids[0]  # 첫 NPC만 제거
                 npc = self.grid_map_ctr.npc_dict[npc_id]
                 if npc:
+                    if npc == self.selected_npc:
+                        self.selected_npc = None
+                        
                     self.grid_map_ctr.remove_npc(npc_id)
                     g_logger.log_always(
                         f"NPC 제거됨: {npc_id} at ({coord.x},{coord.y})")

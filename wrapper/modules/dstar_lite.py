@@ -17,24 +17,17 @@ ffi.cdef("""
         const map m, const coord start, const coord goal, gpointer userdata);
 
     typedef gfloat (*dsl_heuristic_func)(
-        const coord start, const coord goal);
+        const coord start, const coord goal, gpointer userdata);
 
     typedef gboolean (*dsl_is_blocked_func)(
         const map m, gint x, gint y, gpointer userdata);
-
          
     typedef void (*move_func)(const coord c, gpointer userdata);
          
     typedef GList* (*changed_coords_func)(gpointer userdata);
-         
+
     typedef struct s_dstar_lite* dstar_lite;
-         
 
-    gfloat dstar_lite_cost(
-        const map m, const coord start, const coord goal, gpointer userdata);         
-
-    gfloat dstar_lite_heuristic ( const coord start , const coord goal );
-         
     dstar_lite dstar_lite_new ( map m );
          
     dstar_lite dstar_lite_new_full ( 
@@ -66,16 +59,6 @@ ffi.cdef("""
     void dstar_lite_add_update_count ( dstar_lite dsl , const coord c );
     void dstar_lite_clear_update_count ( dstar_lite dsl );
     int dstar_lite_get_update_count ( dstar_lite dsl , const coord c );
-         
-    void dstar_lite_set_cost_func(
-        dstar_lite dsl, dsl_cost_func fn, gpointer userdata);         
-
-    dsl_cost_func dstar_lite_get_cost_func ( const dstar_lite dsl );
-         
-    void dstar_lite_set_heuristic_func ( 
-         dstar_lite dsl , dsl_heuristic_func func );
-
-    dsl_heuristic_func dstar_lite_get_heuristic_func ( const dstar_lite dsl );
          
     const map dstar_lite_get_map ( const dstar_lite dsl );
          
@@ -111,29 +94,6 @@ gint dstar_lite_reconstruct_retry_count(dstar_lite dsl);
 
     void dstar_lite_set_interval_msec(dstar_lite dsl, gint interval_msec);
                   
-    // 루프 내 move_fn 설정/조회
-    move_func dstar_lite_get_move_func(const dstar_lite dsl);
-
-    void dstar_lite_set_move_func(dstar_lite dsl, move_func fn);
-
-    gpointer dstar_lite_get_move_func_userdata(const dstar_lite dsl);
-
-    void dstar_lite_set_move_func_userdata(
-        dstar_lite dsl, gpointer userdata);
-
-    // 루프 내 changed_coords_fn 설정/조회
-    changed_coords_func dstar_lite_get_changed_coords_func(
-        const dstar_lite dsl);
-
-    void dstar_lite_set_changed_coords_func(
-        dstar_lite dsl, changed_coords_func fn);
-
-    gpointer dstar_lite_get_changed_coords_func_userdata(
-        const dstar_lite dsl);
-
-    void dstar_lite_set_changed_coords_func_userdata(
-        dstar_lite dsl, gpointer userdata);
-
     void dstar_lite_init ( dstar_lite dsl );
          
     void dstar_lite_update_vertex ( const dstar_lite dsl , const coord u );
@@ -162,19 +122,51 @@ gint dstar_lite_reconstruct_retry_count(dstar_lite dsl);
          
     void dstar_lite_set_force_quit(dstar_lite dsl, gboolean v);         
          
-    void move_to(const coord c, gpointer userdata);
+gfloat dstar_lite_cost(
+    const map m, const coord start, const coord goal, gpointer userdata);
+dsl_cost_func    dstar_lite_get_cost_func(const dstar_lite dsl);
+void dstar_lite_set_cost_func(dstar_lite dsl, dsl_cost_func fn);
+gpointer    dstar_lite_get_cost_func_userdata(const dstar_lite dsl);
+void dstar_lite_set_cost_func_userdata(
+    dstar_lite dsl, gpointer userdata);    
 
-    GList* get_changed_coords(gpointer userdata);
-         
-
-    gboolean dstar_lite_is_blocked(
-        dstar_lite dsl, gint x, gint y, gpointer userdata);    
-         
+gboolean dstar_lite_is_blocked(
+    dstar_lite dsl, gint x, gint y, gpointer userdata);    
 dsl_is_blocked_func dstar_lite_get_is_blocked_func(dstar_lite dsl);
-                  
 void dstar_lite_set_is_blocked_func(
-    dstar_lite dsl, dsl_is_blocked_func fn, gpointer userdata);         
-         
+    dstar_lite dsl, dsl_is_blocked_func fn);
+gpointer dstar_lite_get_is_blocked_func_userdata(dstar_lite dsl);
+void dstar_lite_set_is_blocked_func_userdata(
+    dstar_lite dsl, gpointer userdata);
+
+gfloat dstar_lite_heuristic(
+    const coord start, const coord goal, gpointer userdata);
+dsl_heuristic_func dstar_lite_get_heuristic_func(
+    const dstar_lite dsl);
+void         dstar_lite_set_heuristic_func(
+    dstar_lite dsl, dsl_heuristic_func func);
+gpointer dstar_lite_get_heuristic_func_userdata(dstar_lite dsl);
+void dstar_lite_set_heuristic_func_userdata(
+    dstar_lite dsl, gpointer userdata);    
+
+void move_to(const coord c, gpointer userdata);
+move_func dstar_lite_get_move_func(const dstar_lite dsl);
+void dstar_lite_set_move_func(dstar_lite dsl, move_func fn);
+gpointer dstar_lite_get_move_func_userdata(const dstar_lite dsl);
+void dstar_lite_set_move_func_userdata(
+    dstar_lite dsl, gpointer userdata);
+
+// get_changed_coords_fn 콜백 예제 함수
+GList* get_changed_coords(gpointer userdata);
+changed_coords_func dstar_lite_get_changed_coords_func(
+    const dstar_lite dsl);
+void dstar_lite_set_changed_coords_func(
+    dstar_lite dsl, changed_coords_func fn);
+gpointer dstar_lite_get_changed_coords_func_userdata(
+    const dstar_lite dsl);
+void dstar_lite_set_changed_coords_func_userdata(
+    dstar_lite dsl, gpointer userdata);                
+                  
 """)
 
 # dstar_lite_cost = C.dstar_lite_cost 
@@ -290,36 +282,6 @@ class c_dstar_lite:
         return C.dstar_lite_get_update_count_table(self._c)
 
     @property
-    def cost_func(self):
-        return C.dstar_lite_get_cost_func(self._c)
-
-    @cost_func.setter
-    def cost_func(self, func, userdata):
-        # void dstar_lite_set_cost_func(
-        #     dstar_lite dsl, dsl_cost_func fn, gpointer userdata);
-        C.dstar_lite_set_cost_func(self._c, func, userdata)
-
-    @property
-    def is_blocked_func(self):
-        # void dstar_lite_get_is_blocked_func(
-        #     dstar_lite dsl);
-        return C.dstar_lite_get_is_blocked_func(self.ptr())
-    
-    @is_blocked_func.setter
-    def is_blocked_func(self, func, userdata):
-        # void dstar_lite_set_is_blocked_func(
-        #     dstar_lite dsl, dsl_is_blocked_func fn, gpointer userdata);
-        return C.dstar_lite_set_is_blocked_func(self.ptr(), func, userdata)
-    
-    @property
-    def heuristic_func(self):
-        return C.dstar_lite_get_heuristic_func(self._c)
-
-    @heuristic_func.setter
-    def heuristic_func(self, value):
-        C.dstar_lite_set_heuristic_func(self._c, value)
-
-    @property
     def map(self):
         return c_map(raw_ptr=C.dstar_lite_get_map(self._c))
 
@@ -392,6 +354,57 @@ class c_dstar_lite:
         C.dstar_lite_set_interval_msec(self.ptr(), msec)
 
     @property
+    def cost_func(self):
+        return C.dstar_lite_get_cost_func(self._c)
+
+    @cost_func.setter
+    def cost_func(self, func):
+        C.dstar_lite_set_cost_func(self._c, func)
+
+    @property
+    def cost_func_userdata(self):
+        return C.dstar_lite_get_cost_func_userdata(self._c)
+
+    @cost_func_userdata.setter
+    def cost_func_userdata(self, userdata):
+        C.dstar_lite_set_cost_func_userdata(self._c, userdata)
+
+    @property
+    def is_blocked_func(self):
+        return C.dstar_lite_get_is_blocked_func(self.ptr())
+    
+    @is_blocked_func.setter
+    def is_blocked_func(self, func):
+        return C.dstar_lite_set_is_blocked_func(self.ptr(), func)
+    
+    @property
+    def is_blocked_func_userdata(self):
+        return C.dstar_lite_get_is_blocked_func_userdata(self.ptr())
+    
+    @is_blocked_func_userdata.setter
+    def is_blocked_func_userdata(self, userdata):
+        return C.dstar_lite_set_is_blocked_func_userdata(self.ptr(), userdata)    
+    
+    @property
+    def heuristic_func(self):
+        return C.dstar_lite_get_heuristic_func(self._c)
+
+    @heuristic_func.setter
+    def heuristic_func(self, value):
+        C.dstar_lite_set_heuristic_func(self._c, value)
+
+    @property
+    def heuristic_func_userdata(self):
+        # BYUL_API gpointer dstar_lite_get_heuristic_func_userdata(dstar_lite dsl);
+        return C.dstar_lite_get_heuristic_func_userdata(self.ptr())
+    
+    @heuristic_func_userdata.setter
+    def heuristic_func_userdata(self, userdata):
+        # BYUL_API void dstar_lite_set_heuristic_func_userdata(
+        #     dstar_lite dsl, gpointer userdata);    
+        C.dstar_lite_set_heuristic_func_userdata(self.ptr, userdata)
+
+    @property
     def move_func(self):
         # move_func dstar_lite_get_move_func(const dstar_lite dsl);        
         return C.dstar_lite_get_move_func(self._c)
@@ -425,11 +438,6 @@ class c_dstar_lite:
         #     dstar_lite dsl, changed_coords_func fn);
         C.dstar_lite_set_changed_coords_func(
             self._c, func)
-
-    # @changed_coords_func.setter
-    # def changed_coords_func(self, value):
-    #     func, userdata = value
-    #     C.dstar_lite_set_changed_coords_func(self._c, func, userdata)   
 
     @property
     def changed_coords_func_userdata(self):

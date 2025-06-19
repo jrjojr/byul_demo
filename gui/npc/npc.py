@@ -51,7 +51,6 @@ class NPC(QObject):
         '''start_delay_sec는 0.5 밑으로는 설정하지 마라.
         여러번 클릭시에 경로 찾기가 잠깐 멈춘다 다시 클릭해야 npc가 움직인다.
         '''
-
         super().__init__()
 
         self.id = npc_id
@@ -125,9 +124,9 @@ class NPC(QObject):
             "gfloat(const map, const coord, const coord, void*)",
             self._cost_cb
         )
-        # self.finder.cost_func = self._cost_cb_c
+        self.finder.cost_func = self._cost_cb_c
         # 반드시 C 함수로 등록
-        C.dstar_lite_set_cost_func(self.finder.ptr(), self._cost_cb_c, ffi.NULL)        
+        # C.dstar_lite_set_cost_func(self.finder.ptr(), self._cost_cb_c, ffi.NULL)        
 
         self._is_blocked_cb_c = ffi.callback(
             "gboolean(const map, gint, gint, void*)",
@@ -142,8 +141,43 @@ class NPC(QObject):
         self.real_queue = Queue()
         self.proto_queue = Queue()
 
-    def __del__(self):
+    def close(self):
+        '''NPC 종료 시 리소스를 정리한다'''
+        # 🔸 탐색 쓰레드 정지
         self.stop_finding()
+
+        # 🔸 목표 큐 및 내부 경로 비우기
+        with self._goal_q.mutex:
+            self._goal_q.queue.clear()
+        self.goal_list.clear()
+
+        with self._next_q.mutex:
+            self._next_q.queue.clear()
+        self.next = None
+
+        self.proto_coord_list.clear()
+        self.real_coord_list.clear()
+        self.phantom_start = None
+        self.prev_goal = None
+
+        # 🔸 C 포인터 관련 콜백 초기화 (C 내부에서 참조를 끊는 게 핵심)
+        self.finder.move_func = ffi.NULL
+        self.finder.changed_coords_func = ffi.NULL
+        self.finder.cost_func = ffi.NULL
+        # self.finder.is_blocked_func = ffi.NULL  # 필요 시 활성화
+
+        # 🔸 C 객체 정리
+        self.finder.close() if hasattr(self.finder, 'close') else None
+
+        # 🔸 이미지 캐시 제거 (선택적)
+        # self.images.clear()
+        # self.route_images.clear()
+
+        # 🔸 로깅
+        g_logger.log_debug(f"[NPC.close] npc({self.id}) 종료 완료")
+
+    def __del__(self):
+        self.close()
 
     def get_cell_size(self):
         return self.m_cell_size

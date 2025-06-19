@@ -49,6 +49,24 @@ gfloat dstar_lite_cost(
     return hypotf(dx, dy);  // ✅ 더 안전한 방식
 }
 
+dsl_cost_func dstar_lite_get_cost_func(const dstar_lite dsl) {
+    return dsl->cost_fn;
+}
+
+void dstar_lite_set_cost_func(dstar_lite dsl, dsl_cost_func fn) {
+    if (!dsl) return;
+    dsl->cost_fn = fn;
+}
+
+gpointer dstar_lite_get_cost_func_userdata(const dstar_lite dsl) {
+    return dsl->cost_fn_userdata;
+}
+
+void dstar_lite_set_cost_func_userdata(dstar_lite dsl, gpointer userdata) {
+    if (!dsl) return;
+    dsl->cost_fn_userdata = userdata;
+}
+
 gboolean dstar_lite_is_blocked(
     dstar_lite dsl, gint x, gint y, gpointer userdata) {
         
@@ -56,8 +74,30 @@ gboolean dstar_lite_is_blocked(
     return map_is_blocked(dsl->m, x, y);
 }
 
+dsl_is_blocked_func dstar_lite_get_is_blocked_func(dstar_lite dsl) {
+    if (!dsl) return NULL;
+    return dsl->is_blocked_fn;
+}
+
+void dstar_lite_set_is_blocked_func(
+    dstar_lite dsl, dsl_is_blocked_func fn) {
+    if (!dsl) return;
+    dsl->is_blocked_fn = fn;
+}
+
+gpointer dstar_lite_get_is_blocked_func_userdata(dstar_lite dsl) {
+    if (!dsl) return NULL;
+    return dsl->is_blocked_fn_userdata;
+}
+
+void dstar_lite_set_is_blocked_func_userdata(
+    dstar_lite dsl, gpointer userdata) {
+    if (!dsl) return;
+    dsl->is_blocked_fn_userdata = userdata;
+}
+
 gfloat dstar_lite_heuristic(
-    const coord start, const coord goal) {
+    const coord start, const coord goal, gpointer userdata) {
 
     if (!start || !goal)
         return FLT_MAX;
@@ -65,6 +105,99 @@ gfloat dstar_lite_heuristic(
     gfloat dx = (gfloat)(start->x - goal->x);
     gfloat dy = (gfloat)(start->y - goal->y);
     return hypotf(dx, dy);  // ✅ 더 정확하고 안정적
+}
+
+dsl_heuristic_func dstar_lite_get_heuristic_func(const dstar_lite dsl) {
+    return dsl->heuristic_fn;
+}
+
+void dstar_lite_set_heuristic_func(dstar_lite dsl, dsl_heuristic_func func) {
+    dsl->heuristic_fn = func;
+}
+
+gpointer dstar_lite_get_heuristic_func_userdata(const dstar_lite dsl) {
+    return dsl->heuristic_fn_userdata;
+}
+
+void dstar_lite_set_heuristic_func_userdata(dstar_lite dsl, gpointer userdata) {
+    dsl->heuristic_fn_userdata = userdata;
+}
+
+void move_to(const coord c, gpointer userdata) {
+    g_print("move to (%d, %d) in finder.\n", c->x, c->y);
+    // coord_free(c);
+}
+
+move_func dstar_lite_get_move_func(const dstar_lite dsl) {
+    if (!dsl) return NULL;
+    return dsl->move_fn;
+}
+
+void dstar_lite_set_move_func(dstar_lite dsl, move_func fn) {
+    if (!dsl) return;
+    dsl->move_fn = fn;    
+}
+
+gpointer dstar_lite_get_move_func_userdata(const dstar_lite dsl) {
+    if (!dsl) return NULL;
+    return dsl->move_fn_userdata;
+}
+
+void dstar_lite_set_move_func_userdata(
+    dstar_lite dsl, gpointer userdata) {
+    
+    if (!dsl) return;
+    dsl->move_fn_userdata = userdata;
+}
+
+GList* get_changed_coords(gpointer userdata) {
+    if (!userdata) {
+        // g_warning("changed_coords: userdata is NULL");
+        g_print("changed_coords: userdata is NULL\n");
+        return NULL;
+    }
+
+    GList* original = (GList*)userdata;
+    GList* copy = NULL;
+
+    for (GList* l = original; l != NULL; l = l->next) {
+        coord original_c = (coord)l->data;
+        coord copied_c = coord_copy(original_c);
+        // coord copied_c = original_c;
+        copy = g_list_append(copy, copied_c);
+    }
+
+    g_print("changed_coords: %d changed coords copied and returned.\n",
+        g_list_length(copy));
+    return copy;
+}
+
+changed_coords_func dstar_lite_get_changed_coords_func(
+    const dstar_lite dsl) {
+
+    if (!dsl) return NULL;
+    return dsl->changed_coords_fn;
+}
+
+void dstar_lite_set_changed_coords_func(
+    dstar_lite dsl, changed_coords_func fn) {
+
+    if (!dsl) return;
+    dsl->changed_coords_fn = fn;
+}
+
+gpointer dstar_lite_get_changed_coords_func_userdata(
+    const dstar_lite dsl) {
+
+    if (!dsl) return NULL;
+    return dsl->changed_coords_fn_userdata;
+}
+
+void dstar_lite_set_changed_coords_func_userdata(
+    dstar_lite dsl, gpointer userdata) {
+
+    if (!dsl) return;
+    dsl->changed_coords_fn_userdata = userdata;
 }
 
 dstar_lite dstar_lite_new(map m) {
@@ -124,8 +257,10 @@ dstar_lite dstar_lite_new_full(map m,
     dsl->interval_msec = 0;
     dsl->proto_route = NULL;
     dsl->real_route = NULL;
+
     dsl->move_fn = NULL;
     dsl->move_fn_userdata = NULL;
+
     dsl->changed_coords_fn = NULL;
     dsl->changed_coords_fn_userdata = NULL;
 
@@ -277,18 +412,6 @@ gint dstar_lite_get_update_count(dstar_lite dsl, const coord c) {
     return val ? *((gint*)val) : 0;
 }
 
-dsl_cost_func dstar_lite_get_cost_func(const dstar_lite dsl) {
-    return dsl->cost_fn;
-}
-
-void dstar_lite_set_heuristic_func(dstar_lite dsl, dsl_heuristic_func func) {
-    dsl->heuristic_fn = func;
-}
-
-dsl_heuristic_func dstar_lite_get_heuristic_func(const dstar_lite dsl) {
-    return dsl->heuristic_fn;
-}
-
 const map dstar_lite_get_map(const dstar_lite dsl) {
     return dsl->m;
 }
@@ -358,56 +481,6 @@ void dstar_lite_reset(dstar_lite dsl) {
     dstar_lite_init(dsl);
 }
 
-move_func dstar_lite_get_move_func(const dstar_lite dsl) {
-    if (!dsl) return NULL;
-    return dsl->move_fn;
-}
-
-void dstar_lite_set_move_func(dstar_lite dsl, move_func fn) {
-    if (!dsl) return;
-    dsl->move_fn = fn;    
-}
-
-gpointer dstar_lite_get_move_func_userdata(const dstar_lite dsl) {
-    if (!dsl) return NULL;
-    return dsl->move_fn_userdata;
-}
-
-void dstar_lite_set_move_func_userdata(
-    dstar_lite dsl, gpointer userdata) {
-    
-    if (!dsl) return;
-    dsl->move_fn_userdata = userdata;
-}
-
-changed_coords_func dstar_lite_get_changed_coords_func(
-    const dstar_lite dsl) {
-
-    if (!dsl) return NULL;
-    return dsl->changed_coords_fn;
-}
-
-void dstar_lite_set_changed_coords_func(
-    dstar_lite dsl, changed_coords_func fn) {
-
-    if (!dsl) return;
-    dsl->changed_coords_fn = fn;
-}
-
-gpointer dstar_lite_get_changed_coords_func_userdata(
-    const dstar_lite dsl) {
-
-    if (!dsl) return NULL;
-    return dsl->changed_coords_fn_userdata;
-}
-
-void dstar_lite_set_changed_coords_func_userdata(
-    dstar_lite dsl, gpointer userdata) {
-
-    if (!dsl) return;
-    dsl->changed_coords_fn_userdata = userdata;
-}
-
 void dstar_lite_set_interval_msec(dstar_lite dsl, gint msec) {
     if (!dsl) return;
     dsl->interval_msec = msec;
@@ -432,7 +505,7 @@ dstar_lite_key dstar_lite_calculate_key(dstar_lite dsl, const coord s) {
     }
 
     gfloat k2 = fminf(g_val, rhs_val);
-    gfloat h = dsl->heuristic_fn(dsl->start, s);
+    gfloat h = dsl->heuristic_fn(dsl->start, s, NULL);
     gfloat k1 = k2 + h + dsl->km;
 
     dstar_lite_key key = dstar_lite_key_new_full( k1, k2 );
@@ -983,7 +1056,7 @@ void dstar_lite_find_loop(const dstar_lite dsl) {
                 dsl->changed_coords_fn_userdata);
 
             if (changed_coords) {
-                dsl->km += dsl->heuristic_fn(s_last, start);
+                dsl->km += dsl->heuristic_fn(s_last, start, NULL);
 
                 if (s_last) coord_free(s_last);
                 s_last = coord_copy(start);
@@ -1025,33 +1098,6 @@ void dstar_lite_find_loop(const dstar_lite dsl) {
     return;    
 }
 
-void move_to(const coord c, gpointer userdata) {
-    g_print("move to (%d, %d) in finder.\n", c->x, c->y);
-    // coord_free(c);
-}
-
-GList* get_changed_coords(gpointer userdata) {
-    if (!userdata) {
-        // g_warning("changed_coords: userdata is NULL");
-        g_print("changed_coords: userdata is NULL\n");
-        return NULL;
-    }
-
-    GList* original = (GList*)userdata;
-    GList* copy = NULL;
-
-    for (GList* l = original; l != NULL; l = l->next) {
-        coord original_c = (coord)l->data;
-        coord copied_c = coord_copy(original_c);
-        // coord copied_c = original_c;
-        copy = g_list_append(copy, copied_c);
-    }
-
-    g_print("changed_coords: %d changed coords copied and returned.\n",
-        g_list_length(copy));
-    return copy;
-}
-
 void dstar_lite_force_quit(dstar_lite dsl) {
     dsl->force_quit = TRUE;
 }
@@ -1064,22 +1110,3 @@ void dstar_lite_set_force_quit(dstar_lite dsl, gboolean v) {
     dsl->force_quit = v;
 }
 
-void dstar_lite_set_cost_func(
-    dstar_lite dsl, dsl_cost_func fn, gpointer userdata) {
-    if (!dsl) return;
-    dsl->cost_fn = fn;
-    dsl->cost_fn_userdata = userdata;
-}
-
-void dstar_lite_set_is_blocked_func(
-    dstar_lite dsl, dsl_is_blocked_func fn, gpointer userdata) {
-    if (!dsl) return;
-    dsl->is_blocked_fn = fn;
-    dsl->is_blocked_fn_userdata = userdata;
-}
-
-
-dsl_is_blocked_func dstar_lite_get_is_blocked_func(dstar_lite dsl) {
-    if (!dsl) return NULL;
-    return dsl->is_blocked_fn;
-}

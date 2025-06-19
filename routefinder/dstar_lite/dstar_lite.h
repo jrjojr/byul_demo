@@ -59,7 +59,7 @@ typedef gfloat (*dsl_cost_func)(
     const map m, const coord start, const coord goal, gpointer userdata);
 
 typedef gfloat (*dsl_heuristic_func)(
-    const coord start, const coord goal);
+    const coord start, const coord goal, gpointer userdata);
 
 typedef gboolean (*dsl_is_blocked_func)(
     const map m, gint x, gint y, gpointer userdata);
@@ -87,6 +87,15 @@ typedef struct s_dstar_lite {
 
     // 휴리스틱 함수
     dsl_heuristic_func heuristic_fn;
+    gpointer heuristic_fn_userdata;    
+
+    // find 함수내에서 루프시에 실행될 move_fn
+    move_func move_fn;
+    gpointer move_fn_userdata;
+
+    // find 함수내에서 루프시에 실행될 changed_coords_fn
+    changed_coords_func changed_coords_fn;
+    gpointer changed_coords_fn_userdata;
 
     // 초기 경로
     route proto_route;
@@ -96,14 +105,6 @@ typedef struct s_dstar_lite {
 
     // find()내에서 잠시 멈춤 실시간 이동시에 속도 대응
     gint interval_msec;
-
-    // find 함수내에서 루프시에 실행될 move_fn
-    move_func move_fn;
-    gpointer move_fn_userdata;
-
-    // find 함수내에서 루프시에 실행될 changed_coords_fn
-    changed_coords_func changed_coords_fn;
-    gpointer changed_coords_fn_userdata;
 
     gint real_loop_max_retry;
 
@@ -128,8 +129,6 @@ typedef struct s_dstar_lite {
     //      dstar_lite_find_target()
     //      dstar_lite_find_route_incremental()
     gint max_range;
-
-    gpointer userdata;
 
     gboolean debug_mode_enabled;  // ✅ 디버그 출력을 켤지 여부
 
@@ -240,22 +239,6 @@ BYUL_API void         dstar_lite_clear_update_count(dstar_lite dsl);
 BYUL_API gint         dstar_lite_get_update_count(
     dstar_lite dsl, const coord c);
 
-BYUL_API void dstar_lite_set_cost_func(
-    dstar_lite dsl, dsl_cost_func fn, gpointer userdata);    
-
-BYUL_API dsl_cost_func    dstar_lite_get_cost_func(const dstar_lite dsl);
-
-BYUL_API dsl_is_blocked_func dstar_lite_get_is_blocked_func(dstar_lite dsl);
-
-BYUL_API void dstar_lite_set_is_blocked_func(
-    dstar_lite dsl, dsl_is_blocked_func fn, gpointer userdata);
-
-BYUL_API void         dstar_lite_set_heuristic_func(
-    dstar_lite dsl, dsl_heuristic_func func);
-
-BYUL_API dsl_heuristic_func dstar_lite_get_heuristic_func(
-    const dstar_lite dsl);
-
 BYUL_API const map    dstar_lite_get_map(const dstar_lite dsl);
 
 BYUL_API const route dstar_lite_get_proto_route(const dstar_lite dsl);
@@ -270,28 +253,50 @@ BYUL_API gint dstar_lite_get_interval_msec(dstar_lite dsl);
 
 BYUL_API void dstar_lite_set_interval_msec(dstar_lite dsl, gint interval_msec);
 
-// 루프 내 move_fn 설정/조회
+// 함수 포인터
 
+BYUL_API gfloat dstar_lite_cost(
+    const map m, const coord start, const coord goal, gpointer userdata);
+BYUL_API dsl_cost_func    dstar_lite_get_cost_func(const dstar_lite dsl);
+BYUL_API void dstar_lite_set_cost_func(dstar_lite dsl, dsl_cost_func fn);
+BYUL_API gpointer    dstar_lite_get_cost_func_userdata(const dstar_lite dsl);
+BYUL_API void dstar_lite_set_cost_func_userdata(
+    dstar_lite dsl, gpointer userdata);    
+
+BYUL_API gboolean dstar_lite_is_blocked(
+    dstar_lite dsl, gint x, gint y, gpointer userdata);    
+BYUL_API dsl_is_blocked_func dstar_lite_get_is_blocked_func(dstar_lite dsl);
+BYUL_API void dstar_lite_set_is_blocked_func(
+    dstar_lite dsl, dsl_is_blocked_func fn);
+BYUL_API gpointer dstar_lite_get_is_blocked_func_userdata(dstar_lite dsl);
+BYUL_API void dstar_lite_set_is_blocked_func_userdata(
+    dstar_lite dsl, gpointer userdata);
+
+BYUL_API gfloat dstar_lite_heuristic(
+    const coord start, const coord goal, gpointer userdata);
+BYUL_API dsl_heuristic_func dstar_lite_get_heuristic_func(
+    const dstar_lite dsl);
+BYUL_API void         dstar_lite_set_heuristic_func(
+    dstar_lite dsl, dsl_heuristic_func func);
+BYUL_API gpointer dstar_lite_get_heuristic_func_userdata(dstar_lite dsl);
+BYUL_API void dstar_lite_set_heuristic_func_userdata(
+    dstar_lite dsl, gpointer userdata);    
+
+BYUL_API void move_to(const coord c, gpointer userdata);
 BYUL_API move_func dstar_lite_get_move_func(const dstar_lite dsl);
-
 BYUL_API void dstar_lite_set_move_func(dstar_lite dsl, move_func fn);
-
 BYUL_API gpointer dstar_lite_get_move_func_userdata(const dstar_lite dsl);
-
 BYUL_API void dstar_lite_set_move_func_userdata(
     dstar_lite dsl, gpointer userdata);
 
-// 루프 내 changed_coords_fn 설정/조회
-
+// get_changed_coords_fn 콜백 예제 함수
+BYUL_API GList* get_changed_coords(gpointer userdata);
 BYUL_API changed_coords_func dstar_lite_get_changed_coords_func(
     const dstar_lite dsl);
-
 BYUL_API void dstar_lite_set_changed_coords_func(
     dstar_lite dsl, changed_coords_func fn);
-
 BYUL_API gpointer dstar_lite_get_changed_coords_func_userdata(
     const dstar_lite dsl);
-
 BYUL_API void dstar_lite_set_changed_coords_func_userdata(
     dstar_lite dsl, gpointer userdata);
 
@@ -388,23 +393,6 @@ BYUL_API void dstar_lite_force_quit(dstar_lite dsl);
 BYUL_API gboolean dstar_lite_is_quit_forced(dstar_lite dsl);
 
 BYUL_API void dstar_lite_set_force_quit(dstar_lite dsl, gboolean v);
-
-// move_fn 콜백 예제 함수
-BYUL_API void move_to(const coord c, gpointer userdata);
-
-// get_changed_coords_fn 콜백 예제 함수
-BYUL_API GList* get_changed_coords(gpointer userdata);
-
-// 실제 사용하는 함수 포인터용 함수들
-
-BYUL_API gfloat dstar_lite_cost(
-    const map m, const coord start, const coord goal, gpointer userdata);
-
-BYUL_API gfloat dstar_lite_heuristic(
-    const coord start, const coord goal);
-
-BYUL_API gboolean dstar_lite_is_blocked(
-    dstar_lite dsl, gint x, gint y, gpointer userdata);    
 
 #ifdef __cplusplus
 }
