@@ -199,17 +199,23 @@ class GridCanvas(QWidget):
                 if cell.status == CellStatus.NPC:
                     if len(cell.npc_ids) > 0:
                         start = c_coord(cell.x, cell.y)
+                        npc = None
+                        old_npc = None
                         for npc_id in cell.npc_ids:
-                            self.grid_map_ctr.add_npc(npc_id, start)
+                            # self.grid_map_ctr.add_npc(npc_id, start)
+                            old_npc = npc
                             npc = self.grid_map_ctr.get_npc(npc_id)
+                            if npc is None:
+                                npc = old_npc
 
                         # 가장 마지막의 npc의 그림만 알면 된다.
-                        if npc.anim_started:
+                        if npc and not npc.anim_started:
+                            image = npc.get_image()
+                        else:
                             # 애니매이션이 시작되었다 기존에 셀에 그린 npc는 제거한다.
                             # 이미지를 그리지 않고 empty 이미지를 그린다.
                             image = ImageManager.get_empty_image()
-                        else:
-                            image = npc.get_image()
+
                 # elif cell.status == CellStatus.EMPTY:
                 else:
                     image = ImageManager.get_empty_image()

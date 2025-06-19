@@ -45,12 +45,12 @@ class GridMap(GridBlockManager):
         self.center_x =0
         self.center_y = 0
         
-        ox, oy = self.get_origin(self.center_x, self.center_y)
-        self.request_load_block(ox, oy)
+        key = self.get_origin(self.center_x, self.center_y)
+        self.request_load_block(key.x, key.y)
 
         self.route_detector = RouteChangingDetector()
 
-    def _on_block_load_succeeded(self, key: tuple):
+    def _on_block_load_succeeded(self, key: c_coord):
         super()._on_block_load_succeeded(key)
     
         if g_logger.debug_mode == True:
@@ -80,7 +80,7 @@ class GridMap(GridBlockManager):
             self.load_blocks_around_for_rect(rect)
 
         # 셀 버퍼 갱신
-        self.buffer_cells: dict[tuple[int, int], GridCell] = self.to_cells(
+        self.buffer_cells: dict[c_coord, GridCell] = self.to_cells(
             x0, y0, width, height)
 
         # # 장애물 정보 반영
@@ -107,7 +107,7 @@ class GridMap(GridBlockManager):
                      self.buffer_cells_width, self.buffer_cells_height)
         return rect
 
-    def load_from_dict(self, data: dict[tuple[int, int], GridCell]):
+    def load_from_dict(self, data: dict[c_coord, GridCell]):
         self._cells = {c_coord.from_tuple(k): v for k, v in data.items()}
 
     def find_width(self, dir: str | Path = None):
@@ -344,3 +344,16 @@ class GridMap(GridBlockManager):
             elapsed = (t1 - t0) * 1000
             self.move_center_elapsed.emit(elapsed)
             # g_logger.log_debug(f"[move_center] 처리 시간: {elapsed:.3f} ms")
+
+    def coord_to_block(self, coord: c_coord) -> c_coord:
+        """좌표가 음수일 경우도 포함하여 블락 키를 올바르게 계산"""
+        bx = coord.x // self.block_size
+        by = coord.y // self.block_size
+
+        # 보정: 음수 좌표일 때 정확히 블락 위치 계산
+        if coord.x < 0 and coord.x % self.block_size != 0:
+            bx -= 1
+        if coord.y < 0 and coord.y % self.block_size != 0:
+            by -= 1
+
+        return (bx, by)

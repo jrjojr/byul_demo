@@ -4,6 +4,8 @@ from grid.grid_cell import GridCell
 from grid.dummy_block_generator import DummyBlock
 from grid.grid_block import GridBlock
 
+from coord import c_coord
+
 import time
 
 from pathlib import Path
@@ -14,9 +16,9 @@ import re
 from utils.log_to_panel import g_logger
     
 class BlockLoaderThread(QThread):
-    # succeeded = Signal(tuple, dict)  # (bx, by), cells: dict[(x, y)] = GridCell
-    succeeded = Signal(tuple)
-    failed = Signal(tuple)          # (bx, by)
+    # succeeded = Signal(c_coord, dict)  # (bx, by), cells: dict[(x, y)] = GridCell
+    succeeded = Signal(c_coord)
+    failed = Signal(c_coord)          # (bx, by)
     loading_block_started = Signal(float)
 
     def __init__(self, folder, x0, y0, block_size,
@@ -42,10 +44,10 @@ class BlockLoaderThread(QThread):
         else:
             self.failed.emit(key)
 
-    def _load_or_generate_block(self) -> tuple[bool, tuple[int, int]]:
+    def _load_or_generate_block(self) -> tuple[bool, c_coord]:
         bx = (self.x0 // self.block_size) * self.block_size
         by = (self.y0 // self.block_size) * self.block_size
-        key = (bx, by)
+        key = c_coord(bx, by)
         path = self.folder / f"block_{bx}_{by}.json"
 
         g_logger.log_debug_threadsafe(
@@ -93,9 +95,10 @@ class BlockLoaderThread(QThread):
             print(f"[❌ 로딩 실패] {path.name}: {e}")
             return False
                 
-    def _generate_block_in_memory(self, key: tuple[int, int]) -> bool:
+    def _generate_block_in_memory(self, key: c_coord) -> bool:
         try:
-            bx, by = key
+            bx = key.x
+            by = key.y
             cell_dict = {
                 (bx + dx, by + dy): GridCell(bx + dx, by + dy)
                 for dy in range(self.block_size)
@@ -108,9 +111,10 @@ class BlockLoaderThread(QThread):
             return False    
 
     def _generate_block_and_save_json(self, path: Path,
-                                      key: tuple[int, int]) -> bool:
+                                      key: c_coord) -> bool:
         try:
-            bx, by = key
+            bx = key.x
+            by = key.y
             cells = DummyBlock.generate(bx, by, self.block_size)
             block = GridBlock(bx, by, self.block_size, cells)
 

@@ -2,6 +2,7 @@ from PySide6.QtCore import Qt, QPoint, QObject, Slot, Signal
 
 from grid.grid_cell import GridCell, CellStatus, CellFlag, TerrainType
 from grid.grid_map import GridMap
+from grid.grid_block import GridBlock
 
 from coord import c_coord
 from route import calc_direction
@@ -20,14 +21,17 @@ class GridMapController(QObject):
         self.parent = parent
         self.npc_dict: dict[str, NPC] = dict()
 
+        self.grid_map.on_npc_spawn = self.on_npc_spawn
+        self.grid_map.on_npc_evict = self.on_npc_evict
+
     def has_npc(self, npc_id):
         if npc_id in self.npc_dict:
             return True
         
         return False
     
-    def get_npc(self, npc_id)->NPC:
-        return self.npc_dict[npc_id]
+    def get_npc(self, npc_id) -> NPC | None:
+        return self.npc_dict.get(npc_id)
     
     def add_npc(self, npc_id, start:c_coord):
         # 이미 self가 npc를 가지고 있으며 종료한다.
@@ -47,7 +51,6 @@ class GridMapController(QObject):
         self.place_npc(npc, npc.start)
 
         self.npc_added.emit(npc_id)
-
 
     def remove_npc(self, npc_id):
         # npc 존재 여부 확인
@@ -72,6 +75,28 @@ class GridMapController(QObject):
         # 시그널 전파
         self.npc_removed.emit(npc_id)
 
+    def on_npc_spawn(self, block_key: c_coord):
+        """주어진 블락 내 셀에 포함된 npc_id 목록을 기준으로 
+        NPC를 생성하여 등록한다."""
+        block = self.grid_map.block_cache.get(block_key)
+        if block:
+            for cell in block.cells.values():
+                for npc_id in cell.npc_ids:
+                    self.add_npc(npc_id, start=c_coord(cell.x, cell.y))
+                    g_logger.log_debug(f"[on_npc_spawn] NPC 생성됨: "
+                                    f"{npc_id} @ ({cell.x}, {cell.y})")
+        else:
+            g_logger.log_debug(f'키 {block_key}에 해당하는 block이 존재하지 않는다')
+
+    def on_npc_evict(self, block_key: c_coord):
+        """현재 해당 블락에 위치한 NPC만 찾아서 remove_npc로 제거한다."""
+
+        for npc_id, npc in list(self.npc_dict.items()):  # dict 크기 중간 변경 대비
+            npc_block = self.grid_map.coord_to_block(npc.start)
+            if npc_block == block_key:
+                self.remove_npc(npc_id)
+                g_logger.log_debug(
+                    f"[on_npc_evict] NPC 제거됨: {npc_id} @ block {block_key}")
 
     def get_cell(self, coord: c_coord) -> GridCell:
         return self.grid_map.get(coord.x, coord.y)
