@@ -7,6 +7,8 @@ It visually demonstrates how NPCs follow their paths dynamically.
 The pathfinding algorithm is based on `D* Lite`,
 implemented in C and wrapped using CFFI for direct control in Python.
 
+> 💖 If you find this project interesting or helpful, you can support its development here: [paypal.me/jrjojr](https://paypal.me/jrjojr)
+
 ---
 
 ## ✅ Key Features
