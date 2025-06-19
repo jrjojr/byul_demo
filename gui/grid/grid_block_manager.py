@@ -11,8 +11,7 @@ from PySide6.QtCore import QObject, QRect, Signal, QTimer
 
 from grid.grid_block import GridBlock
 from grid.grid_cell import GridCell
-from grid.grid_block_loader import BlockLoaderThread
-
+from grid.dummy_block import DummyBlockThread
 import time
 
 from config import BYUL_WORLD_ENV_PATH
@@ -21,7 +20,7 @@ class GridBlockManager(QObject):
     loading_block_completed = Signal()
     to_cells_elapsed = Signal(float, int)
 
-    def __init__(self, block_size=200, max_blocks = 18, max_parallel = 2, 
+    def __init__(self, block_size=100, max_blocks = 18, max_parallel = 2, 
                  on_npc_spawn=None, on_npc_evict=None,
                  parent_path=BYUL_WORLD_ENV_PATH):
         super().__init__()
@@ -36,15 +35,17 @@ class GridBlockManager(QObject):
 
         self.block_cache: OrderedDict[c_coord, GridBlock] = OrderedDict()
         
-        self._active_threads: dict[c_coord, BlockLoaderThread] = {}
+        self._active_threads: dict[c_coord, DummyBlockThread] = {}
 
-        self.loading_queue: deque[tuple[c_coord, bool]] = deque()
+        self.loading_queue: deque[c_coord] = deque()
+        # 중복 제거용 큐는 같은 키도 추가한다.
+        # 집합으로 중복 값을 확인한다.
         self.loading_set: set[c_coord] = set()
 
         self._pending_timer = False
 
         self.on_npc_spawn = on_npc_spawn
-        self.on_npc_evict = on_npc_evict        
+        self.on_npc_evict = on_npc_evict
 
     def get_origin(self, x: int, y: int) -> c_coord:
         return c_coord(
@@ -60,7 +61,7 @@ class GridBlockManager(QObject):
 
         g_logger.log_debug(f'블럭({key.x}, {key.y}) 로딩이 큐에 추가됨.')
 
-        self.loading_queue.append((key, save_to_json))
+        self.loading_queue.append(key)
         self.loading_set.add(key)
 
         if not self._pending_timer:
@@ -73,10 +74,8 @@ class GridBlockManager(QObject):
         while (self.loading_queue and
                len(self._active_threads) < self.max_parallel):
 
-            key, save_to_json = self.loading_queue.popleft()
-            thread = BlockLoaderThread(
-                self.grid_block_path, key.x, key.y,
-                self.block_size, save_to_json=save_to_json)
+            key= self.loading_queue.popleft()
+            thread = DummyBlockThread(key.x, key.y, self.block_size)
 
             thread.succeeded.connect(self._on_block_load_succeeded)
             thread.failed.connect(self._on_block_load_failed)
@@ -107,19 +106,13 @@ class GridBlockManager(QObject):
             g_logger.log_debug(f"[load_block] ❓ 쓰레드 누락: {key}")
             return
 
-        cell_dict = thread.result_dict
-        # g_logger.log_debug(
-        #     f'메인에서 key({key[0]}, {key[1]}), '
-        #     f'id(cell_dict) : {id(cell_dict)}')
-
-        block = GridBlock(key.x, key.y, self.block_size, cell_dict)
-        self.block_cache[key] = block
+        self.block_cache[key] = thread.result
 
         # 💡 블락 내 npc_id 정보 기반으로 NPC 생성 요청
         if self.on_npc_spawn:
             self.on_npc_spawn(key)
 
-        self.__touch_block(*key)
+        self.__touch_block(key)
         self.__evict_if_needed()
 
         g_logger.log_debug(f"[load_block] ✅ 완료: {key}")
@@ -128,7 +121,6 @@ class GridBlockManager(QObject):
         t1 = time.perf_counter()
         g_logger.log_debug(
             f"🎯 _on_block_load_succeeded 처리 시간: {(t1 - t0)*1000:.3f}ms")
-
 
     def _finalize_thread(self, key: c_coord):
         self.loading_set.discard(key)

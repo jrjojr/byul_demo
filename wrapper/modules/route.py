@@ -100,7 +100,7 @@ coord route_look_at(route p, int index);
  * @param dxdy 방향 벡터 (x, y)
  * @return int ROUTE_DIR_*
  */
-int route_get_direction_enum(const coord dxdy);
+int route_get_direction_by_coord(const coord dxdy);
 
 /**
  * @brief 경로 상의 index 방향을 8방향 enum으로 반환합니다.
@@ -110,7 +110,7 @@ int route_get_direction_enum(const coord dxdy);
  * @param index  경로 인덱스
  * @return int ROUTE_DIR_*
  */
-int route_get_direction(route p, int index);
+int route_get_direction_by_index(route p, int index);
 
 /**
  * @brief 이동 경로의 방향이 변경되었는지 판단합니다.
@@ -214,7 +214,14 @@ int route_calc_average_facing(route p, int history);
 int calc_direction(const coord start, const coord goal);
          
 coord direction_to_coord(route_dir_t route_dir);         
-                  
+
+void route_insert(route p, int index, const coord c);
+void route_remove_at(route p, int index);
+void route_remove_value(route p, const coord c);
+gboolean route_contains(const route p, const coord c);
+gint route_find(const route p, const coord c);
+void route_slice(route p, int start, int end);
+         
 """)
 
 def route_set_coords(p: Any, coords: Any) -> None:
@@ -365,20 +372,20 @@ class c_route:
         # coord route_look_at(route p, int index);
         return c_coord(raw_ptr=C.route_look_at(self._p, index))
 
-    # def get_direction_enum(self, dxdy:c_coord):
-    #     # int route_get_direction_enum(const coord dxdy);
-    #     return C.route_get_direction_enum(dxdy.ptr())
+    # def get_direction_by_coord(self, dxdy:c_coord):
+    #     # int route_get_direction_by_coord(const coord dxdy);
+    #     return C.route_get_direction_by_coord(dxdy.ptr())
 
-    # def get_direction(self, index:int):
-    #     # int route_get_direction(route p, int index);
-    #     return C.route_get_direction(self._p, index)
+    # def get_direction_by_index(self, index:int):
+    #     # int route_get_direction_by_index(route p, int index);
+    #     return C.route_get_direction_by_index(self._p, index)
 
-    def get_direction_enum(self, dxdy: c_coord) -> RouteDir:
-        val = C.route_get_direction_enum(dxdy.ptr())
+    def get_direction_by_coord(self, dxdy: c_coord) -> RouteDir:
+        val = C.route_get_direction_by_coord(dxdy.ptr())
         return RouteDir(val)
 
-    def get_direction(self, index: int) -> RouteDir:
-        val = C.route_get_direction(self._p, index)
+    def get_direction_by_index(self, index: int) -> RouteDir:
+        val = C.route_get_direction_by_index(self._p, index)
         return RouteDir(val)
 
     def has_changed(self, start:c_coord, goal:c_coord,
@@ -442,6 +449,30 @@ class c_route:
     def calc_average_facing(self, history:int=1):
         # route_dir_t route_calc_average_facing(route p, int history);
         return C.route_calc_average_facing(self._p, history)
+    
+    def insert(self, index:int, coord:c_coord):
+        # void route_insert(route p, int index, const coord c);
+        C.route_insert(self.ptr(), index, coord.ptr())
+
+    def remove_at(self, index:int):
+        # void route_remove_at(route p, int index);
+        C.route_remove_at(self.ptr(), index)
+
+    def remove_value(self, coord:c_coord):
+        # void route_remove_value(route p, const coord c);
+        C.route_remove_value(self.ptr(), coord.ptr())
+
+    def contains(self, coord:c_coord):
+        # gboolean route_contains(const route p, const coord c);
+        return C.route_contains(self.ptr(), coord.ptr())
+    
+    def find(self, coord:c_coord):
+        # gint route_find(const route p, const coord c);
+        return C.route_find(self.ptr(), coord.ptr())
+    
+    def slice(self, start:int, end:int):
+        # void route_slice(route p, int start, int end);
+        C.route_slice(self.ptr(), start, end)
 
 def calc_direction(start:c_coord, goal:c_coord):
     # int calc_direction(const coord start, const coord goal);

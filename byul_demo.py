@@ -89,23 +89,10 @@ class GridViewer(QMainWindow):
     def _on_focus_window_changed(self, window):
         if window != self.window():
             for key in list(self.grid_canvas._pressed_keys):
-                fake_release = QKeyEvent(QEvent.KeyRelease, key, Qt.NoModifier)
+                fake_release = QKeyEvent(
+                    QEvent.KeyRelease, key, Qt.NoModifier)
                 self.keyReleaseEvent(fake_release)
             self.grid_canvas._pressed_keys.clear()            
-
-    def _handle_toolbar_command(self, command: str):
-        if command == "find_route":
-            self.grid_canvas.grid_map_ctr.find_route(self.grid_canvas.selected_npc)
-        elif command == "clear_route":
-            self.grid_canvas.grid_map_ctr.clear_route()
-        elif command == "view_proto_route":
-            self.grid_canvas.grid_map_ctr.to_proto_route_cells(self.grid_canvas.selected_npc)
-        elif command == "view_real_route":
-            self.grid_canvas.grid_map_ctr.to_real_route_cells(self.grid_canvas.selected_npc)            
-        elif command == "clear_proto_route":
-            self.grid_canvas.selected_npc.clear_proto_route()            
-        elif command == "clear_real_route":
-            self.grid_canvas.selected_npc.clear_real_route()                        
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)

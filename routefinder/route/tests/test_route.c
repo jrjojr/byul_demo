@@ -92,10 +92,10 @@ void test_route_direction_and_angle() {
     g_assert_cmpint(vec1->x, ==, 1);
     g_assert_cmpint(vec1->y, ==, 0);
 
-    route_dir_t dir1 = route_get_direction_enum(vec1);
+    route_dir_t dir1 = route_get_direction_by_coord(vec1);
     g_assert_cmpint(dir1, ==, ROUTE_DIR_RIGHT);
 
-    route_dir_t dir2 = route_get_direction(p, 0);
+    route_dir_t dir2 = route_get_direction_by_index(p, 0);
     g_assert_cmpint(dir2, ==, ROUTE_DIR_RIGHT);
 
     coord from = coord_new_full(2, 2);
@@ -148,12 +148,70 @@ static void test_route_index_based_angle_analysis() {
     g_assert_false(route_has_changed_with_angle_by_index(
         p, 10, 11, 5.0f, &angle));
 
-    coord_free(c1);
-    coord_free(c2);
-    coord_free(c3);
+    // coord_free(c1);
+    // coord_free(c2);
+    // coord_free(c3);
     route_free(p);
 }
 
+static void test_route_insert_remove(void) {
+    route r = route_new();
+    coord c1 = coord_new_full(1, 1);
+    coord c2 = coord_new_full(2, 2);
+    coord c3 = coord_new_full(3, 3);
+
+    route_insert(r, 0, c1);
+    route_insert(r, 1, c3);
+    route_insert(r, 1, c2);  // 중간 삽입
+
+    g_assert_cmpint(route_length(r), ==, 3);
+    g_assert(coord_equal(g_list_nth_data(r->coords, 0), c1));
+    g_assert(coord_equal(g_list_nth_data(r->coords, 1), c2));
+    g_assert(coord_equal(g_list_nth_data(r->coords, 2), c3));
+
+    route_remove_at(r, 1);
+    g_assert_cmpint(route_length(r), ==, 2);
+    g_assert(coord_equal(g_list_nth_data(r->coords, 1), c3));
+
+    route_remove_value(r, c3);
+    g_assert_cmpint(route_length(r), ==, 1);
+    g_assert(coord_equal(g_list_nth_data(r->coords, 0), c1));
+
+    // coord_free(c1);
+    // coord_free(c2);
+    // coord_free(c3);
+    route_free(r);
+}
+
+static void test_route_find_contains(void) {
+    route r = route_new();
+    coord c1 = coord_new_full(5, 5);
+    coord c2 = coord_new_full(9, 9);
+
+    route_insert(r, 0, c1);
+    g_assert_true(route_contains(r, c1));
+    g_assert_cmpint(route_find(r, c1), ==, 0);
+    g_assert_false(route_contains(r, c2));
+    g_assert_cmpint(route_find(r, c2), ==, -1);
+
+    // coord_free(c1);
+    // coord_free(c2);
+    route_free(r);
+}
+
+static void test_route_slice(void) {
+    route r = route_new();
+    for (int i = 0; i < 5; ++i)
+        route_insert(r, i, coord_new_full(i, i));
+
+    route_slice(r, 1, 4);  // [1, 2, 3]
+    g_assert_cmpint(route_length(r), ==, 3);
+
+    g_assert_cmpint(((coord)g_list_nth_data(r->coords, 0))->x, ==, 1);
+    g_assert_cmpint(((coord)g_list_nth_data(r->coords, 2))->x, ==, 3);
+
+    route_free(r);
+}
 
 int main(int argc, char** argv) {
     g_test_init(&argc, &argv, NULL);
@@ -164,6 +222,11 @@ int main(int argc, char** argv) {
     g_test_add_func("/route/direction_and_angle", test_route_direction_and_angle);    
     g_test_add_func("/route/index_angle_analysis", 
         test_route_index_based_angle_analysis);    
+
+    g_test_add_func("/route/insert_remove", test_route_insert_remove);
+    g_test_add_func("/route/find_contains", test_route_find_contains);
+    g_test_add_func("/route/slice", test_route_slice);
+
 
     return g_test_run();
 }

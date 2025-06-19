@@ -31,7 +31,7 @@ class GridMap(GridBlockManager):
 
     update_buffer_cells_elapsed = Signal(float)
 
-    def __init__(self, block_size=200):
+    def __init__(self, block_size=100):
         super().__init__(block_size)
 
         self.map = c_map()
@@ -87,7 +87,6 @@ class GridMap(GridBlockManager):
         # for (x, y), c in self.buffer_cells.items():
         #     if c.terrain == TerrainType.MOUNTAIN:
         #         self.map.block(x, y)
-                
 
         # 변경 신호
         self.buffer_changed.emit(rect)
@@ -220,7 +219,7 @@ class GridMap(GridBlockManager):
         tuple[int, int, int] | None:
         """
         폴더 이름에서 grid_map_가로x세로_블럭사이즈 형식의 정보를 파싱한다.
-        예: grid_map_4000x4000_200 → (4000, 4000, 200)
+        예: grid_map_4000x4000_100 → (4000, 4000, 100)
         """
         name = dir.name if isinstance(dir, Path) else Path(dir).name
         match = re.match(r"grid_map_(\d+)x(\d+)_(\d+)", name)
@@ -253,7 +252,8 @@ class GridMap(GridBlockManager):
                 return cell
 
         # 3. 로딩 중이 아니라면 로딩 요청
-        if key not in self.block_cache and key not in self.loading_set:
+        # if key not in self.block_cache and key not in self.loading_set:
+        if key not in self.block_cache:
             self.request_load_block(x, y)
 
         # 4. 임시용 빈 셀 반환

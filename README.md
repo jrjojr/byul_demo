@@ -16,7 +16,7 @@ implemented in C and wrapped using CFFI for direct control in Python.
 | Feature            | Description                                           |
 | ------------------ | ----------------------------------------------------- |
 | D\* Lite Algorithm | Real-time pathfinding using C-based logic             |
-| GridMap System     | Dynamic map structure with 200x200 cell blocks        |
+| GridMap System     | Dynamic map structure with 100x100 cell blocks        |
 | Multiple NPCs      | Create and switch between multiple NPCs               |
 | Goal Queueing      | Shift + Right Click to set multiple goals in sequence |
 | Obstacle Toggle    | Spacebar toggles NPC-specific obstacles at cursor     |

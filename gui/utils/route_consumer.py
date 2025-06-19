@@ -1,7 +1,7 @@
 '''사용법
 from route_consumer import RouteConsumer
 
-self.real_consumer = RouteConsumer(self.real_coord_list, maxlen=200, chunk_size=8)
+self.real_consumer = RouteConsumer(self.real_coord_list, maxlen=100, chunk_size=8)
 
 def on_real_route_found(self):
     try:

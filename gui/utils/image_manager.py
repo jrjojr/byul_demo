@@ -44,8 +44,12 @@ class ImageManager:
     _selected_npc_image_cache:QPixmap = None
 
     @classmethod
-    def _normalize_path(cls, path: Path | None) -> Path:
+    def _normalize_npc_path(cls, path: Path | None) -> Path:
         return path if path else DEFAULT_NPC_IMAGE_PATH
+    
+    @classmethod
+    def _normalize_route_path(cls, path: Path | None) -> Path:
+        return path if path else DEFAULT_ROUTE_IMAGE_PATH    
 
     @classmethod
     def _load(cls, rel_path: str, base_path: Path=None) -> QPixmap:
@@ -55,7 +59,7 @@ class ImageManager:
     def get_npc_image_paths(cls, path: Path | None = None) -> \
         Dict[RouteDir, Path]:
 
-        base = cls._normalize_path(path)
+        base = cls._normalize_npc_path(path)
         return {
             RouteDir.UNKNOWN: base / NPC_UN_PATH,
             RouteDir.RIGHT: base / NPC_RI_PATH,
@@ -72,7 +76,7 @@ class ImageManager:
     def get_npc_image_set(cls, path: Path | None = None) -> \
         Dict[RouteDir, QPixmap]:
 
-        base = cls._normalize_path(path)
+        base = cls._normalize_npc_path(path)
         key = str(base.resolve())
 
         if key in cls._npc_image_cache:
@@ -97,22 +101,22 @@ class ImageManager:
     def get_route_image_set(cls, path: Path | None = None) -> \
         Dict[RouteDir, QPixmap]:
 
-        base = cls._normalize_path(path)
+        base = cls._normalize_route_path(path)
         key = str(base.resolve())
 
         if key in cls._route_image_cache:
             return cls._route_image_cache[key]
 
         route_images = {
-            RouteDir.UNKNOWN: cls._load(NPC_UN_PATH, base),
-            RouteDir.RIGHT: cls._load(NPC_RI_PATH, base),
-            RouteDir.TOP_RIGHT: cls._load(NPC_TR_PATH, base),
-            RouteDir.TOP: cls._load(NPC_TO_PATH, base),
-            RouteDir.TOP_LEFT: cls._load(NPC_TL_PATH, base),
-            RouteDir.LEFT: cls._load(NPC_LE_PATH, base),
-            RouteDir.DOWN_LEFT: cls._load(NPC_DL_PATH, base),
-            RouteDir.DOWN: cls._load(NPC_DO_PATH, base),
-            RouteDir.DOWN_RIGHT: cls._load(NPC_DR_PATH, base),
+            RouteDir.UNKNOWN: cls._load(ROUTE_UN_PATH, base),
+            RouteDir.RIGHT: cls._load(ROUTE_RI_PATH, base),
+            RouteDir.TOP_RIGHT: cls._load(ROUTE_TR_PATH, base),
+            RouteDir.TOP: cls._load(ROUTE_TO_PATH, base),
+            RouteDir.TOP_LEFT: cls._load(ROUTE_TL_PATH, base),
+            RouteDir.LEFT: cls._load(ROUTE_LE_PATH, base),
+            RouteDir.DOWN_LEFT: cls._load(ROUTE_DL_PATH, base),
+            RouteDir.DOWN: cls._load(ROUTE_DO_PATH, base),
+            RouteDir.DOWN_RIGHT: cls._load(ROUTE_DR_PATH, base),
         }
 
         cls._route_image_cache[key] = route_images

@@ -121,7 +121,7 @@ BYUL_API coord route_look_at(route p, int index);
  * @param dxdy 방향 벡터 (x, y)
  * @return route_dir_t ROUTE_DIR_*
  */
-BYUL_API route_dir_t route_get_direction_enum(const coord dxdy);
+BYUL_API route_dir_t route_get_direction_by_coord(const coord dxdy);
 
 /**
  * @brief 경로 상의 index 방향을 8방향 enum으로 반환합니다.
@@ -131,7 +131,7 @@ BYUL_API route_dir_t route_get_direction_enum(const coord dxdy);
  * @param index  경로 인덱스
  * @return route_dir_t ROUTE_DIR_*
  */
-BYUL_API route_dir_t route_get_direction(route p, int index);
+BYUL_API route_dir_t route_get_direction_by_index(route p, int index);
 
 /**
  * @brief 이동 경로의 방향이 변경되었는지 판단합니다.
@@ -271,6 +271,14 @@ BYUL_API route_dir_t route_calc_average_facing(route p, int history);
 BYUL_API route_dir_t calc_direction(const coord start, const coord goal);
 
 BYUL_API coord direction_to_coord(route_dir_t route_dir);
+
+// 편집 기능 (원본 변경)
+BYUL_API void route_insert(route p, int index, const coord c);
+BYUL_API void route_remove_at(route p, int index);
+BYUL_API void route_remove_value(route p, const coord c);
+BYUL_API gboolean route_contains(const route p, const coord c);
+BYUL_API gint route_find(const route p, const coord c);
+BYUL_API void route_slice(route p, int start, int end);
 
 #ifdef __cplusplus
 }

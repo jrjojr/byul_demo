@@ -219,16 +219,16 @@ class GridMapController(QObject):
             g_logger.log_debug('real_coord_큐에 쌓인 경로를 가져온다.')
             npc.on_real_route_found()
 
-        route = npc.real_coord_list
+        route = npc.real_route
         for i in range(len(route)):
-            c = route[i]
+            c = route.get_coord_at(i)
             if (cell := self.grid_map.get(c.x, c.y)):
                 cell.add_flag(CellFlag.ROUTE)
-                # cell.route_dir = route.get_direction(i)
+                # cell.route_dir = route.get_direction_by_index(i)
                 if i < len(route)-1:
-                    cell.route_dir = calc_direction(c, route[i+1])
+                    cell.route_dir = calc_direction(c, route.get_coord_at(i+1))
                 else:
-                    cell.route_dir = calc_direction(route[i-1], c)
+                    cell.route_dir = calc_direction(route.get_coord_at(i-1), c)
         pass
 
     @Slot(NPC)
@@ -237,16 +237,16 @@ class GridMapController(QObject):
             g_logger.log_debug('to_proto_큐에 쌓인 경로를 가져온다.')            
             npc.on_proto_route_found()
             
-        route = npc.proto_coord_list
+        route = npc.proto_route
         for i in range(len(route)):
-            c = route[i]
+            c = route.get_coord_at(i)
             if (cell := self.grid_map.get(c.x, c.y)):
                 cell.add_flag(CellFlag.ROUTE)
-                # cell.route_dir = route.get_direction(i)
+                # cell.route_dir = route.get_direction_by_index(i)
                 if i < len(route)-1:
-                    cell.route_dir = calc_direction(c, route[i+1])
+                    cell.route_dir = calc_direction(c, route.get_coord_at(i+1))
                 else:
-                    cell.route_dir = calc_direction(route[i-1], c)                    
+                    cell.route_dir = calc_direction(route.get_coord_at(i-1), c)                    
 
         pass        
 

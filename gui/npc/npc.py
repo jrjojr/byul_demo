@@ -84,8 +84,11 @@ class NPC(QObject):
         self._goal_q = Queue()
         self.goal_list:list[c_coord] = list()
 
-        self.real_coord_list = list()
-        self.proto_coord_list = list()
+        # self.real_coord_list = list()
+        # self.proto_coord_list = list()
+
+        self.real_route = c_route()
+        self.proto_route = c_route()
         self.route_capacity = route_capacity
 
         if start:
@@ -155,8 +158,10 @@ class NPC(QObject):
             self._next_q.queue.clear()
         self.next = None
 
-        self.proto_coord_list.clear()
-        self.real_coord_list.clear()
+        # self.proto_coord_list.clear()
+        # self.real_coord_list.clear()
+        self.proto_route.close()
+        self.real_route.close()
         self.phantom_start = None
         self.prev_goal = None
 
@@ -507,8 +512,15 @@ start_delay_sec : {self.start_delay_sec}''')
     def get_image_path(self):
         return self.image_paths[self.direction]
     
-    def get_route_image(self):
-        direction = calc_direction(self.start, self.next)
+    def get_route_image(self, coord):
+        if self.next:
+            dxdy = c_coord(self.next.x - coord.x, self.next.y - coord.y)
+        elif self.prev_goal:
+            dxdy = c_coord(self.prev_goal.x - coord.x, 
+                           self.prev_goal.y - coord.y)
+        else:
+            dxdy = c_coord(0,0)
+        direction = self.proto_route.get_direction_by_coord(dxdy)
         return self.route_images[direction]
 
     def load_image_paths(self, image_path:Path):
@@ -540,18 +552,27 @@ start_delay_sec : {self.start_delay_sec}''')
             return
 
         try:
-            coord_list = p.to_list()
-            if not coord_list:
-                return
+            # coord_list = p.to_list()
+            # if not coord_list:
+                # return
 
             # 전체 경로를 합친 뒤 자르기
-            full = self.proto_coord_list + coord_list
-            if len(full) > self.route_capacity:
-                full = full[-self.route_capacity:]
-            self.proto_coord_list = full
+            # full = self.proto_coord_list + coord_list
+            # if len(full) > self.route_capacity:
+            #     full = full[-self.route_capacity:]
+            # self.proto_coord_list = full
 
+            # g_logger.log_debug(
+            #     f'len(self.proto_coord_list): {len(self.proto_coord_list)}')
+
+            self.proto_route.append_nodup(p)
+            len_full = len(self.proto_route)
+            if len_full > self.route_capacity:
+                self.proto_route.slice(
+                    len_full - self.route_capacity,
+                    len_full)
             g_logger.log_debug(
-                f'len(self.proto_coord_list): {len(self.proto_coord_list)}')
+                f'len(self.proto_route): {len(self.proto_route)}')
 
         finally:
             # p는 이제 더이상 필요없다
@@ -567,18 +588,27 @@ start_delay_sec : {self.start_delay_sec}''')
             return
 
         try:
-            coord_list = p.to_list()
-            if not coord_list:
-                return
+            # coord_list = p.to_list()
+            # if not coord_list:
+            #     return
 
-            # 전체 경로를 합친 뒤 자르기
-            full = self.real_coord_list + coord_list
-            if len(full) > self.route_capacity:
-                full = full[-self.route_capacity:]
-            self.real_coord_list = full
+            # # 전체 경로를 합친 뒤 자르기
+            # full = self.real_coord_list + coord_list
+            # if len(full) > self.route_capacity:
+            #     full = full[-self.route_capacity:]
+            # self.real_coord_list = full
 
+            # g_logger.log_debug(
+            #     f'len(self.real_coord_list): {len(self.real_coord_list)}')
+
+            self.real_route.append_nodup(p)
+            len_full = len(self.real_route)
+            if len_full > self.route_capacity:
+                self.real_route.slice(
+                    len_full - self.route_capacity,
+                    len_full)
             g_logger.log_debug(
-                f'len(self.real_coord_list): {len(self.real_coord_list)}')
+                f'len(self.real_coord_list): {len(self.real_route)}')                
 
         finally:
             # p는 이제 더이상 필요없다

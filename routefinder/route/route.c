@@ -293,12 +293,51 @@ coord route_look_at(route p, int index) {
     return coord_new_full(vx, vy);
 }
 
-route_dir_t route_get_direction_enum(const coord dxdy) {
-    if (!dxdy) return ROUTE_DIR_UNKNOWN;
+// route_dir_t route_get_direction_by_coord(const coord dxdy) {
+//     if (!dxdy) return ROUTE_DIR_UNKNOWN;
+
+//     for (int i = 1; i <= 8; ++i) {
+//         if (dxdy->x == ROUTE_DIRECTION_VECTORS[i][0] &&
+//             dxdy->y == ROUTE_DIRECTION_VECTORS[i][1]) {
+//             return (route_dir_t)i;
+//         }
+//     }
+
+//     return ROUTE_DIR_UNKNOWN;
+// }
+
+// route_dir_t route_get_direction_by_coord(const coord dxdy) {
+//     if (!dxdy || (dxdy->x == 0 && dxdy->y == 0))
+//         return ROUTE_DIR_UNKNOWN;
+
+//     gfloat best_score = -G_MAXFLOAT;
+//     int best_dir = 0;
+
+//     for (int i = 1; i <= 8; ++i) {
+//         int vx = ROUTE_DIRECTION_VECTORS[i][0];
+//         int vy = ROUTE_DIRECTION_VECTORS[i][1];
+
+//         gfloat score = dxdy->x * vx + dxdy->y * vy; // 내적 (cos 유사도와 유사)
+
+//         if (score > best_score) {
+//             best_score = score;
+//             best_dir = i;
+//         }
+//     }
+
+//     return (route_dir_t)best_dir;
+// }
+
+route_dir_t route_get_direction_by_coord(const coord dxdy) {
+    if (!dxdy || (dxdy->x == 0 && dxdy->y == 0))
+        return ROUTE_DIR_UNKNOWN;
+
+    int nx = (dxdy->x > 0) ? 1 : (dxdy->x < 0) ? -1 : 0;
+    int ny = (dxdy->y > 0) ? 1 : (dxdy->y < 0) ? -1 : 0;
 
     for (int i = 1; i <= 8; ++i) {
-        if (dxdy->x == ROUTE_DIRECTION_VECTORS[i][0] &&
-            dxdy->y == ROUTE_DIRECTION_VECTORS[i][1]) {
+        if (ROUTE_DIRECTION_VECTORS[i][0] == nx &&
+            ROUTE_DIRECTION_VECTORS[i][1] == ny) {
             return (route_dir_t)i;
         }
     }
@@ -306,11 +345,10 @@ route_dir_t route_get_direction_enum(const coord dxdy) {
     return ROUTE_DIR_UNKNOWN;
 }
 
-
-route_dir_t route_get_direction(route p, int index) {
+route_dir_t route_get_direction_by_index(route p, int index) {
     coord dxdy = route_look_at(p, index);
     if (!dxdy) return ROUTE_DIR_UNKNOWN;
-    route_dir_t result = route_get_direction_enum(dxdy);
+    route_dir_t result = route_get_direction_by_coord(dxdy);
     coord_free(dxdy);
     return result;
 }
@@ -437,7 +475,7 @@ coord route_get_coord_at(route p, int index) {
     return (coord)(node->data);
 }
 
-BYUL_API void route_update_average_vector_by_index(
+void route_update_average_vector_by_index(
     route p, int index_from, int index_to) {
 
     coord from = route_get_coord_at(p, index_from);
@@ -458,7 +496,7 @@ BYUL_API void route_update_average_vector_by_index(
     p->vec_count += 1;
 }
 
-BYUL_API gboolean route_has_changed_by_index(
+gboolean route_has_changed_by_index(
     route p, int index_from, int index_to, gfloat angle_threshold_deg) {
 
     gfloat angle = 0.0f;
@@ -466,7 +504,7 @@ BYUL_API gboolean route_has_changed_by_index(
         p, index_from, index_to, angle_threshold_deg, &angle);
 }
 
-BYUL_API gboolean route_has_changed_with_angle_by_index(
+gboolean route_has_changed_with_angle_by_index(
     route p,
     int index_from,
     int index_to,
@@ -521,7 +559,7 @@ gfloat route_calc_average_dir(route p, int history) {
     return angle_deg;
 }
 
-BYUL_API route_dir_t route_calc_average_facing(route p, int history) {
+route_dir_t route_calc_average_facing(route p, int history) {
     if (!p || history < 1) return ROUTE_DIR_UNKNOWN;
 
     int len = route_length(p);
@@ -582,4 +620,60 @@ coord direction_to_coord(route_dir_t dir) {
 
     return coord_new_full(ROUTE_DIRECTION_VECTORS[dir][0],
                           ROUTE_DIRECTION_VECTORS[dir][1]);
+}
+
+void route_insert(route p, int index, const coord c) {
+    if (!p || index < 0 || index > g_list_length(p->coords)) return;
+    coord cpy = coord_copy(c);
+    p->coords = g_list_insert(p->coords, cpy, index);
+}
+
+void route_remove_at(route p, int index) {
+    if (!p || index < 0 || index >= g_list_length(p->coords)) return;
+    GList* nth = g_list_nth(p->coords, index);
+    if (nth) {
+        g_free(nth->data);
+        p->coords = g_list_delete_link(p->coords, nth);
+    }
+}
+
+void route_remove_value(route p, const coord c) {
+    if (!p) return;
+    for (GList* l = p->coords; l; l = l->next) {
+        if (coord_equal(l->data, c)) {
+            g_free(l->data);
+            p->coords = g_list_delete_link(p->coords, l);
+            break;
+        }
+    }
+}
+
+gboolean route_contains(const route p, const coord c) {
+    if (!p) return FALSE;
+    for (GList* l = p->coords; l; l = l->next)
+        if (coord_equal(l->data, c)) return TRUE;
+    return FALSE;
+}
+
+gint route_find(const route p, const coord c) {
+    if (!p) return -1;
+    int i = 0;
+    for (GList* l = p->coords; l; l = l->next, ++i)
+        if (coord_equal(l->data, c)) return i;
+    return -1;
+}
+
+void route_slice(route p, int start, int end) {
+    if (!p || start < 0 || end <= start) return;
+    int len = g_list_length(p->coords);
+    if (end > len) end = len;
+
+    GList* new_list = NULL;
+    for (int i = start; i < end; ++i) {
+        coord c = g_list_nth_data(p->coords, i);
+        if (c) new_list = g_list_append(new_list, coord_copy(c));
+    }
+
+    g_list_free_full(p->coords, g_free);
+    p->coords = new_list;
 }

@@ -42,7 +42,7 @@ class GridCanvas(QWidget):
 
     interval_msec_changed = Signal(int)
 
-    def __init__(self, block_size=200, interval_msec=30, min_px=30, parent=None):
+    def __init__(self, block_size=100, interval_msec=30, min_px=30, parent=None):
         super().__init__(parent)
 
         self.grid_map = GridMap(block_size)
@@ -221,11 +221,13 @@ class GridCanvas(QWidget):
                     image = ImageManager.get_empty_image()
 
                 if self.selected_npc:
+                    coord = c_coord(gx, gy)
+                    
                     if not cell.terrain in self.selected_npc.movable_terrain:
                         image = ImageManager.get_obstacle_for_npc_image()
 
                     if cell.has_flag(CellFlag.ROUTE):
-                        image = self.selected_npc.get_route_image()
+                        image = self.selected_npc.get_route_image(coord)
 
                     if cell.has_flag(CellFlag.GOAL):
                         image = ImageManager.get_goal_image()
