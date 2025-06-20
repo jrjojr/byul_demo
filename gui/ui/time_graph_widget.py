@@ -175,17 +175,20 @@ class TimeGraphWidget(pg.PlotWidget):
 
         series_draw = ElapsedSeries("draw_cells")
         series_move = ElapsedSeries("move_center")
-        series_to_cells = ElapsedSeries("to_cells")
+        # series_to_cells = ElapsedSeries("to_cells")
+        series_tick = ElapsedSeries("tick")
         
         # update_buffer_cells_elapsed
-        series_update_buffer_cells = ElapsedSeries("update_buffer_cells")
+        # series_update_buffer_cells = ElapsedSeries("update_buffer_cells")
 
         grid_canvas.draw_cells_elapsed.connect(series_draw.add_elapsed)
         grid_canvas.grid_map.move_center_elapsed.connect(series_move.add_elapsed)
-        grid_canvas.grid_map.to_cells_elapsed.connect(series_to_cells.add_elapsed)
-        grid_canvas.grid_map.update_buffer_cells_elapsed.connect(series_update_buffer_cells.add_elapsed)
+        # grid_canvas.grid_map.to_cells_elapsed.connect(series_to_cells.add_elapsed)
+        # grid_canvas.grid_map.update_buffer_cells_elapsed.connect(series_update_buffer_cells.add_elapsed)
+        grid_canvas.tick_elapsed.connect(series_tick.add_elapsed)
 
         self.add_series(series_draw)
         self.add_series(series_move)
-        self.add_series(series_to_cells)
-        self.add_series(series_update_buffer_cells)
+        # self.add_series(series_to_cells)
+        # self.add_series(series_update_buffer_cells)
+        self.add_series(series_tick)

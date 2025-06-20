@@ -1,4 +1,4 @@
-from PySide6.QtCore import Qt, QPoint, QObject, Slot, Signal, QTimer
+from PySide6.QtCore import Qt, QRect, QObject, Slot, Signal, QTimer
 
 from grid.grid_cell import GridCell, CellStatus, CellFlag, TerrainType
 from grid.grid_map import GridMap
@@ -95,16 +95,6 @@ class GridMapController(QObject):
         # self._spawn_next_npc_batch()
         self._spawn_npc_batch(pending_npcs)
 
-    # def _spawn_next_npc_batch(self, batch_size: int = 10):
-    #     count = 0
-    #     while self._pending_npcs and count < batch_size:
-    #         npc_id, coord = self._pending_npcs.pop(0)
-    #         self.add_npc(npc_id, start=coord)
-    #         count += 1
-
-    #     if self._pending_npcs:
-    #         QTimer.singleShot(2, lambda: self._spawn_next_npc_batch(batch_size))
-
     def _spawn_npc_batch(self, pending_npcs: list[tuple[str, c_coord]], batch_size: int = 10):
         if not pending_npcs:
             return
@@ -120,31 +110,6 @@ class GridMapController(QObject):
                 QTimer.singleShot(2, run_batch)
 
         run_batch()
-
-    # def on_npc_evict(self, block_key: c_coord):
-    #     # self._pending_npc_removals = []
-    #     pending_npc_removals = []
-
-    #     for npc_id, npc in self.npc_dict.items():
-    #         if npc == self.parent.selected_npc:
-    #             self.parent.selected_npc = None
-    #         key_for_npc = self.grid_map.get_origin(npc.start.x, npc.start.y)
-    #         if key_for_npc == block_key:
-    #             # self._pending_npc_removals.append(npc_id)
-    #             self.pending_npc_removals.append(npc_id)                
-
-    #     self._evict_next_npc_batch()
-
-    # def _evict_next_npc_batch(self, batch_size: int = 10):
-    #     count = 0
-    #     while self._pending_npc_removals and count < batch_size:
-    #         npc_id = self._pending_npc_removals.pop(0)
-    #         self.remove_npc(npc_id)
-    #         g_logger.log_debug(f"[on_npc_evict:batch] NPC 제거됨: {npc_id}")
-    #         count += 1
-
-    #     if self._pending_npc_removals:
-    #         QTimer.singleShot(2, lambda: self._evict_next_npc_batch(batch_size))
 
     def on_npc_evict(self, block_key: c_coord):
         # 지역 리스트 생성 (공유 필드 대신)
@@ -179,7 +144,7 @@ class GridMapController(QObject):
         run_batch()
 
     def get_cell(self, coord: c_coord) -> GridCell:
-        return self.grid_map.get(coord.x, coord.y)
+        return self.grid_map.get_cell(coord.x, coord.y)
 
     def add_obstacle(self, coord: c_coord, npc:NPC):
         cell = self.get_cell(coord)
@@ -301,7 +266,7 @@ class GridMapController(QObject):
         route = npc.real_route
         for i in range(len(route)):
             c = route.get_coord_at(i)
-            if (cell := self.grid_map.get(c.x, c.y)):
+            if (cell := self.grid_map.get_cell(c.x, c.y)):
                 cell.add_flag(CellFlag.ROUTE)
         pass
 
@@ -314,7 +279,7 @@ class GridMapController(QObject):
         route = npc.proto_route
         for i in range(len(route)):
             c = route.get_coord_at(i)
-            if (cell := self.grid_map.get(c.x, c.y)):
+            if (cell := self.grid_map.get_cell(c.x, c.y)):
                 cell.add_flag(CellFlag.ROUTE)
         pass        
 
@@ -341,3 +306,25 @@ class GridMapController(QObject):
         self.place_npc_to_cell(npc, coord)
 
         pass
+
+    def get_npcs_in_rect(self, rect: QRect) -> list[NPC]:
+        result = []
+        seen = set()
+
+        for x in range(rect.left(), rect.right()):
+            for y in range(rect.top(), rect.bottom()):
+                cell = self.grid_map.get_cell(x, y)
+                if not cell or not cell.npc_ids:
+                    continue
+
+                for npc_id in cell.npc_ids:
+                    if npc_id in seen:
+                        continue  # 중복 방지
+                    seen.add(npc_id)
+
+                    npc = self.npc_dict.get(npc_id)
+                    if npc:
+                        result.append(npc)
+
+        return result
+

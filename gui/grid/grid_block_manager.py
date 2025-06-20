@@ -20,11 +20,12 @@ from threading import Lock
 
 
 class GridBlockManager(QObject):
-    loading_block_completed = Signal()
+    # loading_block_completed = Signal()
     to_cells_elapsed = Signal(float, int)
+    
     load_block_succeeded = Signal(c_coord)
 
-    def __init__(self, block_size=100, max_blocks = 12, max_parallel = 2, 
+    def __init__(self, block_size=100, max_blocks = 18, max_parallel = 2, 
                  on_npc_spawn=None, on_npc_evict=None,
                  parent_path=BYUL_WORLD_ENV_PATH):
         super().__init__()
@@ -94,42 +95,8 @@ class GridBlockManager(QObject):
             QTimer.singleShot(0, self._process_next_block)
 
         # ✅ 완료 여부 알림
-        if not self.loading_queue and not self._active_threads:
-            self.loading_block_completed.emit()
-
-    # def _on_load_block_succeeded(self, key: c_coord):
-    #     t0 = time.perf_counter()
-
-    #     if key in self.block_cache.keys():
-    #         g_logger.log_debug(
-    #             f"[load_block] ⚠️ 이미 처리된 key (중복 signal?): {key}")
-    #         self._finalize_thread(key)
-    #         return
-
-    #     thread = self._active_threads.get(key)
-    #     if not thread:
-    #         g_logger.log_debug(f"[load_block] ❓ 쓰레드 누락: {key}")
-    #         return
-
-    #     # self.__touch_block(key)
-    #     # self.__evict_if_needed()
-
-    #     self.__evict_if_needed(key)
-
-    #     self.block_cache[key] = thread.result
-
-    #     # 💡 블락 내 npc_id 정보 기반으로 NPC 생성 요청
-    #     if self.on_npc_spawn:
-    #         self.on_npc_spawn(key)
-
-    #     g_logger.log_debug(f"[load_block] ✅ 완료: {key}")
-    #     self._finalize_thread(key)
-
-    #     self.load_block_succeeded.emit(key)
-
-    #     t1 = time.perf_counter()
-    #     g_logger.log_debug(
-    #         f"🎯 _on_load_block_succeeded 처리 시간: {(t1 - t0)*1000:.3f}ms")
+        # if not self.loading_queue and not self._active_threads:
+        #     self.loading_block_completed.emit()
 
     def _on_load_block_succeeded(self, key: c_coord):
         t0 = time.perf_counter()
@@ -272,7 +239,7 @@ class GridBlockManager(QObject):
         if g_logger.debug_mode:
             # g_logger.log_debug(f"[to_cells] 완료: {len(cells)}개, "
             #             f"{(time.time() - start) * 1000:.3f}ms")
-            elapsed = time.time() - start
+            elapsed = (time.time() - start) * 1000
             self.to_cells_elapsed.emit(elapsed, len(cells))
 
         return cells

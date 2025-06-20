@@ -42,6 +42,8 @@ class GridCanvas(QWidget):
 
     interval_msec_changed = Signal(int)
 
+    tick_elapsed = Signal(float)
+
     def __init__(self, block_size=100, interval_msec=30, min_px=30, parent=None):
         super().__init__(parent)
 
@@ -78,6 +80,7 @@ class GridCanvas(QWidget):
 
         self.grid_changed.connect(self.grid_map.set_buffer_width_height)
         self.grid_map.buffer_changed.connect(self.request_redraw)
+        # self.grid_map.load_block_succeeded.connect(self.request_redraw)
 
         self.click_mode = "select_npc"
 
@@ -92,8 +95,6 @@ class GridCanvas(QWidget):
 
         self.npc_selected.connect(self.on_npc_selected)
         self.selected_npc = None
-
-        # self.grid_map.buffer_changed.connect(self.request_redraw)
 
     @Slot(int)
     def set_interval_msec(self, msec: int):
@@ -149,20 +150,34 @@ class GridCanvas(QWidget):
         elapsed_sec = now - self._last_tick_time
         self._last_tick_time = now
 
-        if self.grid_map_ctr.npc_dict:
-            for npc in self.grid_map_ctr.npc_dict.values():
-                npc.on_tick(elapsed_sec)
+        center_x, center_y = self.grid_map.get_center()
+        min_x = center_x - (self.grid_width // 2)
+        min_y = center_y - (self.grid_height // 2)
 
+        # for npc in self.grid_map_ctr.npc_dict.values():
+        rect = QRect(min_x, min_y, self.grid_width, self.grid_height)
+        npcs = None
+        if self.grid_map_ctr.npc_dict:
+            # for npc in self.grid_map_ctr.npc_dict.values():
+            npcs = self.grid_map_ctr.get_npcs_in_rect(rect)
+            for npc in npcs:
+                npc.on_tick(elapsed_sec)
+        
         self.move_from_keys(self._pressed_keys)
         self.grid_map.update_buffer_cells()
 
         if self.needs_redraw:
-            self.draw_cells_to_pixmap()
+            self.draw_cells_and_npcs(npcs)            
             self.needs_redraw = False
+
+        if g_logger.debug_mode:
+            last = time.time()
+            elapsed = ( last - now )  * 1000
+            self.tick_elapsed.emit(elapsed)
 
         self.update()
 
-    def draw_cells_to_pixmap(self):
+    def draw_cells_and_npcs(self, npcs=None):
         if g_logger.debug_mode:
             t0 = time.time()
             self.draw_cells_started.emit(t0)
@@ -187,7 +202,7 @@ class GridCanvas(QWidget):
                 gx = min_x + x
                 gy = min_y + y
                 px, py = self.convert_pos_grid_to_win(x, y)
-                cell = self.grid_map.get(gx, gy)
+                cell = self.grid_map.get_cell(gx, gy)
 
                 if cell is None:
                     painter.setBrush(brush_empty)
@@ -244,13 +259,9 @@ class GridCanvas(QWidget):
                     painter.drawText(px, py, self.cell_size, self.cell_size, 
                                      Qt.AlignCenter, cell.text())
 
-        for npc in self.grid_map_ctr.npc_dict.values():
-            npc_phantom_start = npc.phantom_start
-            win_pos_x, win_pos_y = self.get_win_pos_at_coord(npc_phantom_start)
+        if npcs:
+            self.draw_npcs(painter, npcs)
 
-            if win_pos_x and win_pos_y:
-                npc.draw( painter, win_pos_x, win_pos_y)
-                
         if self.selected_npc:
             npc_phantom_start = self.selected_npc.phantom_start
             win_pos_x, win_pos_y = self.get_win_pos_at_coord(npc_phantom_start)
@@ -267,8 +278,17 @@ class GridCanvas(QWidget):
         if g_logger.debug_mode:
             t1 = time.time()
             elapsed = (t1 - t0) * 1000
-            QTimer.singleShot(0, lambda: self.draw_cells_ended.emit(t1))
-            QTimer.singleShot(0, lambda: self.draw_cells_elapsed.emit(elapsed))
+            # QTimer.singleShot(0, lambda: self.draw_cells_ended.emit(t1))
+            # QTimer.singleShot(0, lambda: self.draw_cells_elapsed.emit(elapsed))
+            self.draw_cells_elapsed.emit(elapsed)            
+
+    def draw_npcs(self, painter, npcs):
+        for npc in npcs:
+            npc_phantom_start = npc.phantom_start
+            win_pos_x, win_pos_y = self.get_win_pos_at_coord(npc_phantom_start)
+
+            if win_pos_x and win_pos_y:
+                npc.draw( painter, win_pos_x, win_pos_y)        
 
     # 나머지: 입력 처리, hover 표시, 클릭 처리 등은 원래 코드 유지
     def keyPressEvent(self, event):
@@ -423,7 +443,7 @@ class GridCanvas(QWidget):
 
         gx = center_x - self.grid_width // 2 + cx
         gy = center_y - self.grid_height // 2 + cy
-        return self.grid_map.get(gx, gy)  # 셀이 존재하지 않으면 자동으로 None
+        return self.grid_map.get_cell(gx, gy)  # 셀이 존재하지 않으면 자동으로 None
    
     def get_cell_at_win_pos(self, x, y):
         cx, cy = self.convert_pos_win_to_grid(x, y)
@@ -434,14 +454,14 @@ class GridCanvas(QWidget):
         gx = center_x - self.grid_width // 2 + cx
         gy = center_y - self.grid_height // 2 + cy
 
-        return self.grid_map.get(gx, gy)
+        return self.grid_map.get_cell(gx, gy)
 
     def get_cell_at_grid(self, grid_x:int, grid_y:int):
         center_x, center_y = self.grid_map.get_center()
         if 0 <= grid_x < self.grid_width and 0 <= grid_y < self.grid_height:
             gx = center_x - self.grid_width // 2 + grid_x
             gy = center_y - self.grid_height // 2 + grid_y
-            return self.grid_map.get(gx, gy)
+            return self.grid_map.get_cell(gx, gy)
         return None
     
     def get_grid_at_cell(self, cell: GridCell):

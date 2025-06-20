@@ -49,7 +49,7 @@ class GridMap(GridBlockManager):
 
         self.route_detector = RouteChangingDetector()
 
-        self.load_block_succeeded.connect(self.to_buffer_cells)
+        # self.load_block_succeeded.connect(self.to_buffer_cells)
         # self.load_block_succeeded.connect(self.update_buffer_cells)
 
     @Slot(c_coord)
@@ -73,7 +73,7 @@ class GridMap(GridBlockManager):
         if g_logger.debug_mode:
             # g_logger.log_debug(f"[to_cells] 완료: {len(cells)}개, "
             #             f"{(time.time() - start) * 1000:.3f}ms")
-            elapsed = time.time() - start
+            elapsed = ( time.time() - start ) * 1000
             self.update_buffer_cells_elapsed.emit(elapsed)        
 
     def clear_route_flags(self):
@@ -96,8 +96,8 @@ class GridMap(GridBlockManager):
             self.load_blocks_around_for_rect(rect)
 
         # 셀 버퍼 갱신
-        self.buffer_cells: dict[c_coord, GridCell] = self.to_cells(
-            x0, y0, width, height)
+        # self.buffer_cells: dict[c_coord, GridCell] = self.to_cells(
+        #     x0, y0, width, height)
 
         # # 장애물 정보 반영
         # for (x, y), c in self.buffer_cells.items():
@@ -110,7 +110,7 @@ class GridMap(GridBlockManager):
         if g_logger.debug_mode:
             # g_logger.log_debug(f"[to_cells] 완료: {len(cells)}개, "
             #             f"{(time.time() - start) * 1000:.3f}ms")
-            elapsed = time.time() - start
+            elapsed = (time.time() - start) * 1000
             self.update_buffer_cells_elapsed.emit(elapsed)        
 
     def get_buffer_cells_rect(self):
@@ -246,7 +246,7 @@ class GridMap(GridBlockManager):
             return width, height, block_size
         return None
 
-    def get(self, x, y) -> GridCell:
+    def get_cell(self, x, y) -> GridCell:
         """
         지정 좌표의 셀을 반환한다.
         - buffer_cells에 있으면 즉시 반환
@@ -255,8 +255,8 @@ class GridMap(GridBlockManager):
         """
         coord = c_coord(x, y)
         # 1. 셀 캐시 먼저 확인
-        if coord in self.buffer_cells:
-            return self.buffer_cells[coord]
+        # if coord in self.buffer_cells:
+        #     return self.buffer_cells[coord]
 
         # 2. 블럭에서 직접 조회 시도
         key = self.get_origin(x, y)
@@ -264,12 +264,12 @@ class GridMap(GridBlockManager):
         if block:
             cell = block.cells.get(coord)
             if cell:
-                self.buffer_cells[key] = cell
+                # self.buffer_cells[key] = cell
                 return cell
             
         # # 3. 로딩 중이 아니라면 로딩 요청
         # if key not in self.block_cache and key not in self.loading_set:
-        #     self.request_load_block(x, y)            
+        #     self.request_load_block(x, y)
 
         return None
     
@@ -296,7 +296,7 @@ class GridMap(GridBlockManager):
         self.update_buffer_cells()
         self.center_changed.emit(gx, gy)
 
-    def move_center(self, dx: int, dy: int, distance=2):
+    def move_center(self, dx: int, dy: int, distance=1):
         """
         중심 좌표를 (dx, dy)만큼 직접 이동하며,
         내부적으로 set_center를 호출하지 않고 로딩 및 시그널을 직접 처리한다.
@@ -331,23 +331,23 @@ class GridMap(GridBlockManager):
         self.center_x = new_x
         self.center_y = new_y
 
-        # min_x = new_x - (self.buffer_cells_width // 2)
-        # min_y = new_y - (self.buffer_cells_height // 2)
+        min_x = new_x - (self.buffer_cells_width // 2)
+        min_y = new_y - (self.buffer_cells_height // 2)
 
-        # rect = QRect(min_x, min_y,
-        #             self.buffer_cells_width, self.buffer_cells_height)
+        rect = QRect(min_x, min_y,
+                    self.buffer_cells_width, self.buffer_cells_height)
 
-        # # → forward 기반으로 교체
-        # if not self.is_blocks_loaded_forward_for_rect(rect, dx, dy, 
-        #                                               distance):
-        #     # g_logger.log_debug(
-        #     #     f'좌표({new_x},{new_y})이 포함된 '
-        #     #     f'사각형({rect.left()}, {rect.top()}, '
-        #     #     f'{rect.width()}, {rect.height()})의 ({dx}, {dy})방향으로 '
-        #     #     f'{distance}만큼 블락을 로딩한다.'
-        #     #     )
+        # → forward 기반으로 교체
+        if not self.is_blocks_loaded_forward_for_rect(rect, dx, dy, 
+                                                      distance):
+            # g_logger.log_debug(
+            #     f'좌표({new_x},{new_y})이 포함된 '
+            #     f'사각형({rect.left()}, {rect.top()}, '
+            #     f'{rect.width()}, {rect.height()})의 ({dx}, {dy})방향으로 '
+            #     f'{distance}만큼 블락을 로딩한다.'
+            #     )
                         
-        #     self.load_blocks_forward_for_rect(rect, dx, dy, distance)
+            self.load_blocks_forward_for_rect(rect, dx, dy, distance)
 
         self.update_buffer_cells()
         self.center_changed.emit(new_x, new_y)
