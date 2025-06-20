@@ -104,17 +104,17 @@ class Actions(QObject):
         self.select_npc_action.triggered.connect(
             self.on_select_npc_action_triggered)
         
-        self.add_npc_action = QAction('NPC 추가', parent)
-        self.add_npc_action.setToolTip(
+        self.spawn_npc_at_action = QAction('NPC 추가', parent)
+        self.spawn_npc_at_action.setToolTip(
             '화면의 셀을 클릭하면 랜덤 ID로 NPC를 추가합니다')
-        self.add_npc_action.triggered.connect(
-            self.on_add_npc_action_triggered)
+        self.spawn_npc_at_action.triggered.connect(
+            self.on_spawn_npc_at_action_triggered)
         
-        self.remove_npc_action = QAction('NPC 제거', parent)
-        self.remove_npc_action.setToolTip(
+        self.despawn_npc_at_action = QAction('NPC 제거', parent)
+        self.despawn_npc_at_action.setToolTip(
             '화면의 셀을 클릭하면 해당 좌표의 NPC를 제거합니다')
-        self.remove_npc_action.triggered.connect(
-            self.on_remove_npc_action_triggered)        
+        self.despawn_npc_at_action.triggered.connect(
+            self.on_despawn_npc_at_action_triggered)        
         
         self.clear_route_action = QAction('경로 초기화', parent)
         self.clear_route_action.setToolTip(
@@ -240,15 +240,15 @@ class Actions(QObject):
         setting_widget = self.parent.side_panel.canvas_setting_widget
         setting_widget.set_combo_click_mode('select_npc')
 
-    def on_add_npc_action_triggered(self):
-        self.parent.grid_canvas.set_click_mode('add_npc')        
+    def on_spawn_npc_at_action_triggered(self):
+        self.parent.grid_canvas.set_click_mode('spawn_npc_at')        
         setting_widget = self.parent.side_panel.canvas_setting_widget
-        setting_widget.set_combo_click_mode('add_npc')        
+        setting_widget.set_combo_click_mode('spawn_npc_at')        
 
-    def on_remove_npc_action_triggered(self):
-        self.parent.grid_canvas.set_click_mode('remove_npc')     
+    def on_despawn_npc_at_action_triggered(self):
+        self.parent.grid_canvas.set_click_mode('despawn_npc_at')     
         setting_widget = self.parent.side_panel.canvas_setting_widget
-        setting_widget.set_combo_click_mode('remove_npc')        
+        setting_widget.set_combo_click_mode('despawn_npc_at')        
 
     def on_clear_route_action_triggered(self):
         self.parent.grid_canvas.grid_map_ctr.clear_route()

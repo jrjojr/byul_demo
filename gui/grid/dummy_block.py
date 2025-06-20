@@ -48,7 +48,7 @@ class DummyBlock(GridBlock):
             for dx in range(block_size):
                 x = x0 + dx
                 y = y0 + dy
-                result[(x, y)] = GridCell.random(
+                result[c_coord(x, y)] = GridCell.random(
                     x=x, y=y,
                     npc_chance=self.npc_chance,
                     terrain_ratio_normal=self.terrain_ratio_normal,
@@ -87,7 +87,7 @@ class DummyBlock(GridBlock):
         cell_dict = {}
         for raw in raw_cells:
             cell = GridCell.from_dict(raw)
-            cell_dict[(cell.x, cell.y)] = cell
+            cell_dict[c_coord(cell.x, cell.y)] = cell
 
         return cls(
             x0=x0,
@@ -160,7 +160,7 @@ class DummyBlockThread(QThread):
                 event_chance=self.event_chance
             )
             self.result = block
-            self.succeeded.emit(block.get_coord_key(), block)
+            self.succeeded.emit(c_coord(self.x0, self.y0), block)
         except Exception as e:
             g_logger.log_debug_threadsafe(
                 f"[\u274c DummyBlockThread 실패] ({self.x0},{self.y0}): {e}")

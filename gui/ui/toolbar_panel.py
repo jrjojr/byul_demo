@@ -25,8 +25,8 @@ class ToolbarPanel(QToolBar):
         self._command_callback = None  # GridMapController에 전달될 명령 콜백
 
         self.addAction(self.actions.select_npc_action)
-        self.addAction(self.actions.add_npc_action)
-        self.addAction(self.actions.remove_npc_action)
+        self.addAction(self.actions.spawn_npc_at_action)
+        self.addAction(self.actions.despawn_npc_at_action)
         self.addAction(self.actions.clear_route_action)
         self.addAction(self.actions.view_proto_route_action)
         self.addAction(self.actions.view_real_route_action)

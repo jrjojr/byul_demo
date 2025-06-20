@@ -30,9 +30,9 @@ ffi.cdef("""
 
     dstar_lite dstar_lite_new ( map m );
          
-    dstar_lite dstar_lite_new_full ( 
-         map m , dsl_cost_func cost_fn , dsl_heuristic_func heuristic_fn , 
-         int debug_mode_enabled);
+    dstar_lite dstar_lite_new_full(map m, coord start, 
+        dsl_cost_func cost_fn, dsl_heuristic_func heuristic_fn,
+        gboolean debug_mode_enabled);         
 
     void dstar_lite_free ( dstar_lite dsl );
     coord dstar_lite_get_start ( const dstar_lite dsl );
@@ -183,24 +183,20 @@ class c_dstar_lite:
             self._c = raw_ptr
         else:
             raise ValueError("기본 생성자는 지원되지 않습니다. "
-                             "from_values 또는 from_map을 사용하세요.")
+                             "from_values 또는 from_map을 사용하세요.")            
 
     @classmethod
     def from_map(cls, m:c_map):
         ptr = C.dstar_lite_new(m.ptr())
         return cls(raw_ptr=ptr)
-
-    @classmethod
-    def from_values(cls, map_m:c_map, start:c_coord, goal:c_coord, km:float, 
-        max_range:int, real_loop_max_retry:int, 
-        cost_fn:Any, heuristic_fn:Any, debug_mode_enabled:bool, userdata:Any):
-
-        ptr = C.dstar_lite_new_full(map_m.ptr(), start.ptr(), goal.ptr(), km, 
-            max_range, real_loop_max_retry, 
-            cost_fn, heuristic_fn, debug_mode_enabled, userdata)
-        
-        return cls(raw_ptr=ptr)
     
+    @classmethod
+    def from_values(cls, map:c_map, start:c_coord, debug_mode:bool=False):
+        ptr = C.dstar_lite_new_full(map.ptr(), start.ptr(), 
+                                    DSTAR_LITE_COST, 
+                                    DSTAR_LITE_HEURISTIC, debug_mode)
+        return cls(raw_ptr=ptr)    
+
     def ptr(self):
         return self._c
 

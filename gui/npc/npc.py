@@ -54,7 +54,11 @@ class NPC(QObject):
         super().__init__()
 
         self.id = npc_id
-        self.finder = c_dstar_lite.from_map(gmap.map)
+        if start:
+            self.finder = c_dstar_lite.from_values(gmap.map, start)
+        else:
+            self.finder = c_dstar_lite.from_map(gmap.map)
+        
         self.finder.compute_max_retry = 1000
         self.loop_once = False
 
@@ -90,9 +94,6 @@ class NPC(QObject):
         self.real_route = c_route()
         self.proto_route = c_route()
         self.route_capacity = route_capacity
-
-        if start:
-            self.finder.start = start
 
         # 루프 돌때
         # append_goal할때 시작이 현재의 시작이라 문제생긴다.
@@ -149,14 +150,14 @@ class NPC(QObject):
         # 🔸 탐색 쓰레드 정지
         self.stop_finding()
 
-        # 🔸 목표 큐 및 내부 경로 비우기
-        with self._goal_q.mutex:
-            self._goal_q.queue.clear()
-        self.goal_list.clear()
+        # # 🔸 목표 큐 및 내부 경로 비우기
+        # with self._goal_q.mutex:
+        #     self._goal_q.queue.clear()
+        # self.goal_list.clear()
 
-        with self._next_q.mutex:
-            self._next_q.queue.clear()
-        self.next = None
+        # with self._next_q.mutex:
+        #     self._next_q.queue.clear()
+        # self.next = None
 
         # self.proto_coord_list.clear()
         # self.real_coord_list.clear()
@@ -166,13 +167,13 @@ class NPC(QObject):
         self.prev_goal = None
 
         # 🔸 C 포인터 관련 콜백 초기화 (C 내부에서 참조를 끊는 게 핵심)
-        self.finder.move_func = ffi.NULL
-        self.finder.changed_coords_func = ffi.NULL
-        self.finder.cost_func = ffi.NULL
+        # self.finder.move_func = ffi.NULL
+        # self.finder.changed_coords_func = ffi.NULL
+        # self.finder.cost_func = ffi.NULL
         # self.finder.is_blocked_func = ffi.NULL  # 필요 시 활성화
 
         # 🔸 C 객체 정리
-        self.finder.close() if hasattr(self.finder, 'close') else None
+        # self.finder.close()
 
         # 🔸 이미지 캐시 제거 (선택적)
         # self.images.clear()
@@ -512,37 +513,21 @@ start_delay_sec : {self.start_delay_sec}''')
     def get_image_path(self):
         return self.image_paths[self.direction]
     
-    def get_route_image(self, coord):
-        if self.next:
-            dxdy = c_coord(self.next.x - coord.x, self.next.y - coord.y)
-        elif self.prev_goal:
-            dxdy = c_coord(self.prev_goal.x - coord.x, 
-                           self.prev_goal.y - coord.y)
-        else:
-            dxdy = c_coord(0,0)
-        direction = self.proto_route.get_direction_by_coord(dxdy)
+    def get_proto_route_image(self, coord):
+        cur_idx = self.proto_route.find(coord)
+        direction = self.proto_route.get_direction_by_index(cur_idx)
         return self.route_images[direction]
+    
+    def get_real_route_image(self, coord):
+        cur_idx = self.real_route.find(coord)
+        direction = self.real_route.get_direction_by_index(cur_idx)
+        return self.route_images[direction]    
 
     def load_image_paths(self, image_path:Path):
         self.image_paths = ImageManager.get_npc_image_paths(image_path)
 
     def load_images(self, image_path:Path):
         self.images = ImageManager.get_npc_image_set(image_path)                
-
-    def log_info(self):
-        g_logger.log_debug(f'''
-    self.start = ({self.start.x}, {self.start.y})
-    self.next = ({self.next.x}, {self.next.y})
-
-    self.disp_dx = {self.disp_dx}
-    self.disp_dy = {self.disp_dy}
-
-    self.m_speed_kmh = {self.m_speed_kmh}
-
-    self.grid_unit_m = {self.grid_unit_m}
-
-    self.m_cell_size = {self.m_cell_size}
-''')
 
     def on_proto_route_found(self):
         try:
@@ -552,19 +537,6 @@ start_delay_sec : {self.start_delay_sec}''')
             return
 
         try:
-            # coord_list = p.to_list()
-            # if not coord_list:
-                # return
-
-            # 전체 경로를 합친 뒤 자르기
-            # full = self.proto_coord_list + coord_list
-            # if len(full) > self.route_capacity:
-            #     full = full[-self.route_capacity:]
-            # self.proto_coord_list = full
-
-            # g_logger.log_debug(
-            #     f'len(self.proto_coord_list): {len(self.proto_coord_list)}')
-
             self.proto_route.append_nodup(p)
             len_full = len(self.proto_route)
             if len_full > self.route_capacity:
@@ -588,19 +560,6 @@ start_delay_sec : {self.start_delay_sec}''')
             return
 
         try:
-            # coord_list = p.to_list()
-            # if not coord_list:
-            #     return
-
-            # # 전체 경로를 합친 뒤 자르기
-            # full = self.real_coord_list + coord_list
-            # if len(full) > self.route_capacity:
-            #     full = full[-self.route_capacity:]
-            # self.real_coord_list = full
-
-            # g_logger.log_debug(
-            #     f'len(self.real_coord_list): {len(self.real_coord_list)}')
-
             self.real_route.append_nodup(p)
             len_full = len(self.real_route)
             if len_full > self.route_capacity:

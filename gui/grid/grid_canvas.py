@@ -93,6 +93,8 @@ class GridCanvas(QWidget):
         self.npc_selected.connect(self.on_npc_selected)
         self.selected_npc = None
 
+        # self.grid_map.buffer_changed.connect(self.request_redraw)
+
     @Slot(int)
     def set_interval_msec(self, msec: int):
         msec = max(0, msec)  # 음수면 0으로 고정
@@ -109,10 +111,10 @@ class GridCanvas(QWidget):
     def showEvent(self, event):
         super().showEvent(event)
         coord = c_coord(0, 0)
-        QTimer.singleShot(1000, lambda: self.add_npc(coord))
+        QTimer.singleShot(1000, lambda: self.spawn_npc_at(coord))
         self.request_redraw()
 
-    def add_npc(self, coord:c_coord):
+    def spawn_npc_at(self, coord:c_coord):
         npc_id = NPC.generate_random_npc_id()
         self.grid_map_ctr.add_npc(npc_id, coord)
         npc = self.grid_map_ctr.get_npc(npc_id)
@@ -227,7 +229,7 @@ class GridCanvas(QWidget):
                         image = ImageManager.get_obstacle_for_npc_image()
 
                     if cell.has_flag(CellFlag.ROUTE):
-                        image = self.selected_npc.get_route_image(coord)
+                        image = self.selected_npc.get_proto_route_image(coord)
 
                     if cell.has_flag(CellFlag.GOAL):
                         image = ImageManager.get_goal_image()
@@ -278,8 +280,9 @@ class GridCanvas(QWidget):
         elif key == Qt.Key_Space:
             cell = self.get_cell_at_win_pos(
                 self.last_mouse_pos.x(), self.last_mouse_pos.y())
-            c = c_coord(cell.x, cell.y)
-            self.grid_map_ctr.toggle_obstacle(c, self.selected_npc)
+            if cell:
+                c = c_coord(cell.x, cell.y)
+                self.grid_map_ctr.toggle_obstacle(c, self.selected_npc)
 
         # print(f"[KEY] {event.key()}, focus: {self.hasFocus()}")            
 
@@ -331,8 +334,9 @@ class GridCanvas(QWidget):
             # 더블 클릭 위치
             pos = event.position().toPoint()
             cell = self.get_cell_at_win_pos(pos.x(), pos.y())
-            g_logger.log_always(
-                f"더블 클릭 at {pos.x()}, {pos.y()}, 셀 키 ({cell.x},{cell.y})")    
+            if cell:
+                g_logger.log_always(f"더블 클릭 at {pos.x()}, {pos.y()}, "
+                                    f"셀 키 ({cell.x},{cell.y})")    
         # self.update()
 
     def wheelEvent(self, event: QWheelEvent):
@@ -380,8 +384,8 @@ class GridCanvas(QWidget):
 
         cell = self.get_cell_at_win_pos(x, y)
         if not cell:
-            center_x, center_y = self.grid_map.get_center()
-            cell = self.grid_map.get(center_x, center_y)
+            return
+
 
         # 셀 사각형 기본 위치는 마우스 위치 기준
         # rect_x = (x // cell_size) * cell_size
@@ -491,6 +495,10 @@ class GridCanvas(QWidget):
         x = pos.x()
         y = pos.y()
         cell = self.get_cell_at_win_pos(x, y)
+        if not cell:
+            g_logger.log_always(f'현재 win위치({x}, {y})에 셀이 없다.')
+            return 
+        
         gx = cell.x
         gy = cell.y
 
@@ -502,13 +510,14 @@ class GridCanvas(QWidget):
                 self.npc_selected.emit(npc)
                 g_logger.log_always(f"✅ 선택된 NPC: {npc.id}")
             else:
+                self.selected_npc = None                
                 g_logger.log_always("⚠️ 해당 셀에 NPC가 없습니다.")
         
-        elif self.click_mode == "add_npc":
-            self.add_npc(coord)
+        elif self.click_mode == "spawn_npc_at":
+            self.spawn_npc_at(coord)
             g_logger.log_always(f"NPC 추가됨: at ({coord.x},{coord.y})")
 
-        elif self.click_mode == "remove_npc":
+        elif self.click_mode == "despawn_npc_at":
             if cell.npc_ids:
                 npc_id = cell.npc_ids[0]  # 첫 NPC만 제거
                 npc = self.grid_map_ctr.npc_dict[npc_id]
@@ -517,6 +526,7 @@ class GridCanvas(QWidget):
                         self.selected_npc = None
                         
                     self.grid_map_ctr.remove_npc(npc_id)
+                    self.selected_npc = None
                     g_logger.log_always(
                         f"NPC 제거됨: {npc_id} at ({coord.x},{coord.y})")
 
@@ -528,7 +538,11 @@ class GridCanvas(QWidget):
         x = pos.x()
         y = pos.y()
         # gx, gy = self.convert_pos_win_to_grid(x, y)
-        cell = self.get_cell_at_win_pos(x, y)        
+        cell = self.get_cell_at_win_pos(x, y)
+        if not cell:
+            g_logger.log_always(f'현재 win위치({x}, {y})에 셀이 없다.')
+            return 
+                    
         gx = cell.x
         gy = cell.y
         
@@ -550,7 +564,11 @@ class GridCanvas(QWidget):
         x = pos.x()
         y = pos.y()
         # gx, gy = self.convert_pos_win_to_grid(x, y)
-        cell = self.get_cell_at_win_pos(x, y)        
+        cell = self.get_cell_at_win_pos(x, y)
+        if not cell:
+            g_logger.log_always(f'현재 win위치({x}, {y})에 셀이 없다.')
+            return 
+                
         gx = cell.x
         gy = cell.y
         

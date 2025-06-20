@@ -5,7 +5,7 @@ import json
 import time
 from pathlib import Path
 
-from PySide6.QtCore import Signal, QRect
+from PySide6.QtCore import Signal, Slot, QRect
 
 from grid.grid_cell import GridCell, CellStatus, CellFlag, TerrainType
 from grid.grid_block_manager import GridBlockManager
@@ -27,7 +27,6 @@ class GridMap(GridBlockManager):
     move_center_started = Signal(float)
     move_center_ended = Signal(float)
     move_center_elapsed = Signal(float)
-    loading_block_ended = Signal(float)
 
     update_buffer_cells_elapsed = Signal(float)
 
@@ -38,7 +37,7 @@ class GridMap(GridBlockManager):
         self.parent = None
 
         # 셀 캐시 버퍼 (GridCanvas에서 사용)
-        self.buffer_cells = {}
+        self.buffer_cells: dict[c_coord, GridCell] = dict()
         self.buffer_cells_width = 0
         self.buffer_cells_height = 0
 
@@ -50,15 +49,32 @@ class GridMap(GridBlockManager):
 
         self.route_detector = RouteChangingDetector()
 
-    def _on_block_load_succeeded(self, key: c_coord):
-        super()._on_block_load_succeeded(key)
-    
-        if g_logger.debug_mode == True:
-            t0 = time.time()
-            self.loading_block_ended.emit(t0)
+        self.load_block_succeeded.connect(self.to_buffer_cells)
+        # self.load_block_succeeded.connect(self.update_buffer_cells)
 
-        self.update_buffer_cells()
-        
+    @Slot(c_coord)
+    def to_buffer_cells(self, key:c_coord):
+        if g_logger.debug_mode:
+            start = time.time()
+           
+        x0 = key.x
+        y0 = key.y
+        width = self.block_size
+        height = self.block_size
+
+        rect = QRect(x0, y0, width, height)
+
+        # 셀 버퍼 갱신
+        self.buffer_cells = self.to_cells(x0, y0, width, height)
+
+        # 변경 신호
+        self.buffer_changed.emit(rect)
+
+        if g_logger.debug_mode:
+            # g_logger.log_debug(f"[to_cells] 완료: {len(cells)}개, "
+            #             f"{(time.time() - start) * 1000:.3f}ms")
+            elapsed = time.time() - start
+            self.update_buffer_cells_elapsed.emit(elapsed)        
 
     def clear_route_flags(self):
         for cell in self.buffer_cells.values():
@@ -235,29 +251,27 @@ class GridMap(GridBlockManager):
         지정 좌표의 셀을 반환한다.
         - buffer_cells에 있으면 즉시 반환
         - 없으면 블럭 캐시를 확인하여 해당 셀을 가져오고,
-        블럭이 없으면 로딩을 요청한다.
-        - 셀이 존재하지 않으면 더미 빈 셀(GridCell) 반환
+        그래도 없으면 None
         """
+        coord = c_coord(x, y)
         # 1. 셀 캐시 먼저 확인
-        if (x, y) in self.buffer_cells:
-            return self.buffer_cells[(x, y)]
+        if coord in self.buffer_cells:
+            return self.buffer_cells[coord]
 
         # 2. 블럭에서 직접 조회 시도
         key = self.get_origin(x, y)
         block = self.block_cache.get(key)
         if block:
-            cell = block.cells.get((x, y))
+            cell = block.cells.get(coord)
             if cell:
-                self.buffer_cells[(x, y)] = cell
+                self.buffer_cells[key] = cell
                 return cell
-
-        # 3. 로딩 중이 아니라면 로딩 요청
+            
+        # # 3. 로딩 중이 아니라면 로딩 요청
         # if key not in self.block_cache and key not in self.loading_set:
-        if key not in self.block_cache:
-            self.request_load_block(x, y)
+        #     self.request_load_block(x, y)            
 
-        # 4. 임시용 빈 셀 반환
-        return GridCell(x, y)
+        return None
     
     def get_cell_at_center(self):
         cx, cy = self.get_center()
@@ -345,7 +359,7 @@ class GridMap(GridBlockManager):
             self.move_center_elapsed.emit(elapsed)
             # g_logger.log_debug(f"[move_center] 처리 시간: {elapsed:.3f} ms")
 
-    def coord_to_block(self, coord: c_coord) -> c_coord:
+    def get_block_key_for_coord(self, coord: c_coord) -> c_coord:
         """좌표가 음수일 경우도 포함하여 블락 키를 올바르게 계산"""
         bx = coord.x // self.block_size
         by = coord.y // self.block_size
@@ -356,4 +370,4 @@ class GridMap(GridBlockManager):
         if coord.y < 0 and coord.y % self.block_size != 0:
             by -= 1
 
-        return (bx, by)
+        return c_coord(bx, by)

@@ -66,7 +66,7 @@ class CanvasSettingWidget(QWidget):
         self.label_click_mode = QLabel("Click Mode")
         self.combo_click_mode = QComboBox()
         self.combo_click_mode.addItems([
-            "select_npc", "add_npc", "remove_npc", "obstacle"
+            "select_npc", "spawn_npc_at", "despawn_npc_at", "obstacle"
         ])
         layout.addWidget(self.label_click_mode)
         layout.addWidget(self.combo_click_mode)
@@ -182,8 +182,13 @@ class CanvasSettingWidget(QWidget):
             self.combo_click_mode.setEditText(mode_text)  # editable=False면 표시만
 
     @Slot(NPC)
-    def on_npc_selected(self, npc:NPC):
-        self.label_selected_npc.setText(f'현재 선택된 npc : {npc.id}')
+    def on_npc_selected(self, npc: NPC):
+        full_id = npc.id
+        short_id = full_id if len(full_id) <= 15 else full_id[:11] + "..."
+
+        self.label_selected_npc.setText(f"현재 선택된 npc : {short_id}")
+        self.label_selected_npc.setToolTip(f"NPC ID: {full_id}")
+
 
     @Slot(int)
     def on_interval_msec_changed(self, msec:int):
@@ -198,7 +203,13 @@ class CanvasSettingWidget(QWidget):
     def on_npc_added(self, npc_id:str):
         # 총 NPC 수 표시
         npc_count = len(self.canvas.grid_map_ctr.npc_dict)
-        msg = f"""{npc_id} 추가됨 
+        full_id = npc_id
+        short_id = full_id if len(full_id) <= 15 else full_id[:11] + "..."
+
+        self.label_total_npc_len.setText(f"현재 선택된 npc : {short_id}")
+        self.label_total_npc_len.setToolTip(f"NPC ID: {full_id}")        
+
+        msg = f"""{short_id} 추가됨 
 총 NPC 수: {npc_count}
 """
         self.label_total_npc_len.setText(msg)
@@ -211,8 +222,14 @@ class CanvasSettingWidget(QWidget):
     @Slot(str)
     def on_npc_removed(self, npc_id: str):
         # 총 NPC 수 표시
+        full_id = npc_id
+        short_id = full_id if len(full_id) <= 15 else full_id[:11] + "..."
+
+        self.label_total_npc_len.setText(f"현재 선택된 npc : {short_id}")
+        self.label_total_npc_len.setToolTip(f"NPC ID: {full_id}")           
+
         npc_count = len(self.canvas.grid_map_ctr.npc_dict)
-        msg = f"""{npc_id} 제거됨 
+        msg = f"""{short_id} 제거됨 
 총 NPC 수: {npc_count}
 """
         self.label_total_npc_len.setText(msg)

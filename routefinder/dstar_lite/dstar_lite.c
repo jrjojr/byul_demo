@@ -203,14 +203,16 @@ void dstar_lite_set_changed_coords_func_userdata(
 dstar_lite dstar_lite_new(map m) {
     if (!m) return NULL;
 
-    dstar_lite dsl = dstar_lite_new_full(m, 
+    coord c = coord_new();
+    dstar_lite dsl = dstar_lite_new_full(m, c,
         dstar_lite_cost, dstar_lite_heuristic,        
         FALSE);
+    coord_free(c);
 
     return dsl;
 }
 
-dstar_lite dstar_lite_new_full(map m, 
+dstar_lite dstar_lite_new_full(map m, coord start,
     dsl_cost_func cost_fn, dsl_heuristic_func heuristic_fn,
     gboolean debug_mode_enabled) {
 
@@ -218,8 +220,8 @@ dstar_lite dstar_lite_new_full(map m,
 
     dstar_lite dsl = g_new0(dstar_lite_t, 1);
     dsl->m = m;
-    dsl->start = coord_new_full(0, 0);
-    dsl->goal = coord_new_full(0, 0);
+    dsl->start = coord_copy(start);
+    dsl->goal = coord_copy(start);
     
     dsl->km = 0.0f;
     dsl->max_range = auto_max_range(dsl->start, dsl->goal);

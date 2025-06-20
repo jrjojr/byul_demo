@@ -16,11 +16,15 @@ import time
 
 from config import BYUL_WORLD_ENV_PATH
 
+from threading import Lock
+
+
 class GridBlockManager(QObject):
     loading_block_completed = Signal()
     to_cells_elapsed = Signal(float, int)
+    load_block_succeeded = Signal(c_coord)
 
-    def __init__(self, block_size=100, max_blocks = 18, max_parallel = 2, 
+    def __init__(self, block_size=100, max_blocks = 12, max_parallel = 2, 
                  on_npc_spawn=None, on_npc_evict=None,
                  parent_path=BYUL_WORLD_ENV_PATH):
         super().__init__()
@@ -34,6 +38,7 @@ class GridBlockManager(QObject):
         self.grid_block_path.mkdir(parents=True, exist_ok=True)
 
         self.block_cache: OrderedDict[c_coord, GridBlock] = OrderedDict()
+        self._cache_lock = Lock()        
         
         self._active_threads: dict[c_coord, DummyBlockThread] = {}
 
@@ -53,7 +58,7 @@ class GridBlockManager(QObject):
             (y // self.block_size) * self.block_size
         )
 
-    def request_load_block(self, x: int, y: int, save_to_json: bool = True):
+    def request_load_block(self, x: int, y: int):
         key = self.get_origin(x, y)
 
         if key in self.block_cache or key in self.loading_set:
@@ -77,8 +82,8 @@ class GridBlockManager(QObject):
             key= self.loading_queue.popleft()
             thread = DummyBlockThread(key.x, key.y, self.block_size)
 
-            thread.succeeded.connect(self._on_block_load_succeeded)
-            thread.failed.connect(self._on_block_load_failed)
+            thread.succeeded.connect(self._on_load_block_succeeded)
+            thread.failed.connect(self._on_load_block_failed)
 
             self._active_threads[key] = thread
             thread.start()            
@@ -92,35 +97,87 @@ class GridBlockManager(QObject):
         if not self.loading_queue and not self._active_threads:
             self.loading_block_completed.emit()
 
-    def _on_block_load_succeeded(self, key: c_coord):
+    # def _on_load_block_succeeded(self, key: c_coord):
+    #     t0 = time.perf_counter()
+
+    #     if key in self.block_cache.keys():
+    #         g_logger.log_debug(
+    #             f"[load_block] ⚠️ 이미 처리된 key (중복 signal?): {key}")
+    #         self._finalize_thread(key)
+    #         return
+
+    #     thread = self._active_threads.get(key)
+    #     if not thread:
+    #         g_logger.log_debug(f"[load_block] ❓ 쓰레드 누락: {key}")
+    #         return
+
+    #     # self.__touch_block(key)
+    #     # self.__evict_if_needed()
+
+    #     self.__evict_if_needed(key)
+
+    #     self.block_cache[key] = thread.result
+
+    #     # 💡 블락 내 npc_id 정보 기반으로 NPC 생성 요청
+    #     if self.on_npc_spawn:
+    #         self.on_npc_spawn(key)
+
+    #     g_logger.log_debug(f"[load_block] ✅ 완료: {key}")
+    #     self._finalize_thread(key)
+
+    #     self.load_block_succeeded.emit(key)
+
+    #     t1 = time.perf_counter()
+    #     g_logger.log_debug(
+    #         f"🎯 _on_load_block_succeeded 처리 시간: {(t1 - t0)*1000:.3f}ms")
+
+    def _on_load_block_succeeded(self, key: c_coord):
         t0 = time.perf_counter()
 
-        if key in self.block_cache:
-            g_logger.log_debug(
-                f"[load_block] ⚠️ 이미 처리된 key (중복 signal?): {key}")
-            self._finalize_thread(key)
-            return
+        with self._cache_lock:
+            if key in self.block_cache:
+                g_logger.log_debug(
+                    f"[load_block] ⚠️ 이미 처리된 key (중복 signal?): {key}")
+                self._finalize_thread(key)
+                return
 
-        thread = self._active_threads.get(key)
-        if not thread:
-            g_logger.log_debug(f"[load_block] ❓ 쓰레드 누락: {key}")
-            return
+            thread = self._active_threads.get(key)
+            if not thread:
+                g_logger.log_debug(f"[load_block] ❓ 쓰레드 누락: {key}")
+                return
 
-        self.block_cache[key] = thread.result
+            self.__evict_if_needed(protect_key=key)
 
-        # 💡 블락 내 npc_id 정보 기반으로 NPC 생성 요청
+            # 캐시에 안전하게 추가
+            self.block_cache[key] = thread.result
+
+        # 💡 블락 내 npc_id 정보 기반으로 NPC 생성 요청 (lock 밖에서 호출)
         if self.on_npc_spawn:
             self.on_npc_spawn(key)
 
-        self.__touch_block(key)
-        self.__evict_if_needed()
-
         g_logger.log_debug(f"[load_block] ✅ 완료: {key}")
         self._finalize_thread(key)
+        self.load_block_succeeded.emit(key)
 
         t1 = time.perf_counter()
         g_logger.log_debug(
-            f"🎯 _on_block_load_succeeded 처리 시간: {(t1 - t0)*1000:.3f}ms")
+            f"🎯 _on_load_block_succeeded 처리 시간: {(t1 - t0)*1000:.3f}ms")
+
+    def __evict_if_needed(self, protect_key: c_coord | None = None, max_remove: int = 1):
+        removed = 0
+        while len(self.block_cache) > self.max_blocks and removed < max_remove:
+            evictable_keys = [k for k in self.block_cache if k != protect_key]
+            if not evictable_keys:
+                g_logger.log_debug("[evict_block] 🚫 보호 대상 외에 제거할 key 없음")
+                break
+
+            old_key = evictable_keys[0]
+            self.block_cache.pop(old_key)
+            removed += 1
+
+            g_logger.log_debug(f"[evict_block] ⛔ 제거: {old_key}")
+            if self.on_npc_evict:
+                self.on_npc_evict(old_key)
 
     def _finalize_thread(self, key: c_coord):
         self.loading_set.discard(key)
@@ -134,7 +191,7 @@ class GridBlockManager(QObject):
             self._pending_timer = True
             QTimer.singleShot(0, self._process_next_block)
 
-    def _on_block_load_failed(self, key: c_coord):
+    def _on_load_block_failed(self, key: c_coord):
         # 중복 처리 방어
         if key not in self._active_threads:
             g_logger.log_debug(
@@ -144,18 +201,32 @@ class GridBlockManager(QObject):
         g_logger.log_debug(f"[load_block] ❌ 실패: {key}")
         self._finalize_thread(key)
 
-    def __touch_block(self, key:c_coord):
-        if key in self.block_cache:
-            g_logger.log_debug(f'block_cache에 key : {key} 가 존재한다 제거 예약한다.')
-            self.block_cache.move_to_end(key)
+    # def __touch_block(self, key:c_coord):
+    #     if key in self.block_cache:
+    #         g_logger.log_debug(
+    #             f'block_cache에 key : {key} 가 존재한다 제거 예약한다.')
+    #         self.block_cache.move_to_end(key)
 
-    def __evict_if_needed(self):
-        while len(self.block_cache) > self.max_blocks:
-            old_key, _ = self.block_cache.popitem(last=False)
-            g_logger.log_debug(f"[evict_block] ⛔ 제거: {old_key}")
+    # def __evict_if_needed(self):
+    #     while len(self.block_cache) > self.max_blocks:
+    #         old_key, _ = self.block_cache.popitem(last=False)
+    #         g_logger.log_debug(f"[evict_block] ⛔ 제거: {old_key}")
+    #         if self.on_npc_evict:
+    #             self.on_npc_evict(old_key) 
 
-            if self.on_npc_evict:
-                self.on_npc_evict(old_key) 
+    # def __evict_if_needed(self, protect_key: c_coord | None = None):
+    #     while len(self.block_cache) > self.max_blocks:
+    #         old_key, _ = next(iter(self.block_cache.items()))
+
+    #         if old_key == protect_key:
+    #             g_logger.log_debug(f"[evict_block] 🚫 보호된 key라서 제거하지 않음: {old_key}")
+    #             break  # 이 블럭을 제거하면 안 되므로 루프 중단
+
+    #         old_key, _ = self.block_cache.popitem(last=False)
+    #         g_logger.log_debug(f"[evict_block] ⛔ 제거: {old_key}")
+
+    #         if self.on_npc_evict:
+    #             self.on_npc_evict(old_key)
 
     def load_blocks_around(self, center_x, center_y, around_range=1):
         base = self.get_origin(center_x, center_y)
@@ -192,11 +263,11 @@ class GridBlockManager(QObject):
             if use_all_cells:
                 cells.update(block.cells)
             else:
-                for (x, y), cell in block.cells.items():
-                    if start_x <= x < start_x + width and \
-                        start_y <= y < start_y + height:
+                for key, cell in block.cells.items():
+                    if start_x <= key.x < start_x + width and \
+                        start_y <= key.y < start_y + height:
 
-                        cells[(x, y)] = cell
+                        cells[key] = cell
 
         if g_logger.debug_mode:
             # g_logger.log_debug(f"[to_cells] 완료: {len(cells)}개, "

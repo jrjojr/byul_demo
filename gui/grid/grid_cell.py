@@ -6,6 +6,7 @@ from route import RouteDir
 
 import random
 import string
+import uuid
 
 class CellStatus(Enum):
     EMPTY = 0
@@ -35,7 +36,6 @@ class GridCell:
         self.status: CellStatus = status
         self.flags: CellFlag = CellFlag.NONE
         self.npc_ids: list[str] = []
-        self.route_dir: RouteDir = RouteDir.UNKNOWN
 
         self.terrain: TerrainType = terrain
         self.light_level: float = 1.0
@@ -47,16 +47,22 @@ class GridCell:
         self.timestamp: float = 0.0
         self.custom_data: dict[str, Any] = {}
 
-    def add_npc(self, npc_id: str):
+    def add_npc_id(self, npc_id: str):
         if npc_id not in self.npc_ids:
             self.npc_ids.append(npc_id)
         self.status = CellStatus.NPC
 
-    def remove_npc(self, npc_id: str):
+    def remove_npc_id(self, npc_id: str):
         if npc_id in self.npc_ids:
             self.npc_ids.remove(npc_id)
         if len(self.npc_ids) <= 0:
             self.status = CellStatus.EMPTY
+
+    # # GridCell.remove_npc_id 는 그냥 비워버리거나 status만 바꾸기:
+    # def remove_npc_id(self, npc_id: str):
+    #     if npc_id in self.npc_ids:
+    #         # ❌ self.npc_ids.remove(npc_id) ← 이건 절대 하지 않기
+    #         self.status = CellStatus.EMPTY
 
     def has_flag(self, flag: CellFlag) -> bool:
         return flag in self.flags
@@ -131,42 +137,6 @@ t:{self.terrain.name},
             "custom_data": self.custom_data
         }
 
-    def get_route_image(self):
-        if self.has_flag(CellFlag.ROUTE):
-            route_dir = self.route_dir
-
-            if route_dir == RouteDir.RIGHT:
-                icon_path = DEFAULT_ROUTE_RI_PATH
-                pass
-            elif route_dir == RouteDir.TOP_RIGHT:
-                icon_path = DEFAULT_ROUTE_TR_PATH
-                pass
-            elif route_dir == RouteDir.TOP:
-                icon_path = DEFAULT_ROUTE_TO_PATH
-                pass
-            elif route_dir == RouteDir.TOP_LEFT:
-                icon_path = DEFAULT_ROUTE_TL_PATH
-                pass
-            elif route_dir == RouteDir.LEFT:
-                icon_path = DEFAULT_ROUTE_LE_PATH
-                pass
-            elif route_dir == RouteDir.DOWN_LEFT:
-                icon_path = DEFAULT_ROUTE_DL_PATH
-                pass
-            elif route_dir == RouteDir.DOWN:
-                icon_path = DEFAULT_ROUTE_DO_PATH
-                pass
-            elif route_dir == RouteDir.DOWN_RIGHT:
-                icon_path = DEFAULT_ROUTE_DR_PATH
-                pass
-            else:
-                # 알려진 방향이 아니다. 기본값
-                # icon_path = None
-                icon_path = DEFAULT_ROUTE_UN_PATH
-                pass 
-        # return load_image(icon_path)
-        return icon_path
-    
     @classmethod
     def from_dict(cls, data: dict):
         cell = cls(
@@ -177,7 +147,6 @@ t:{self.terrain.name},
         )
         cell.flags = CellFlag(data.get("flags", 0))
         cell.npc_ids = data.get("npc_ids", [])
-        cell.route_dir = RouteDir(data.get("route_dir", 0))
         cell.light_level = data.get("light_level", 1.0)
         cell.zone_id = data.get("zone_id")
         cell.items = data.get("items", [])
@@ -203,6 +172,7 @@ t:{self.terrain.name},
     ) -> "GridCell":
         """
         지정된 위치 (x, y)에 랜덤 속성을 가진 GridCell 하나 생성.
+  단, npc_id는 최초 생성시에만 생성되며, 이후 로딩시에는 변하지 않는다.         
         """
         cell = cls(x, y)
         cell.light_level = round(random.uniform(0.3, 1.0), 2)
@@ -225,13 +195,14 @@ t:{self.terrain.name},
                 cell.terrain = terrain
                 break
 
-        # NPC 설정
+        # NPC 설정 (최초 한 번만)
         if random.random() < npc_chance:
-            npc_id = f"npc_{random.randint(1000, 9999)}"
+            if not cell.npc_ids and cell.x != 0 and cell.y != 0:
+                npc_id = f"npc_{uuid.uuid4().hex}"
+                cell.npc_ids.append(npc_id)
             cell.status = CellStatus.NPC
-            cell.npc_ids.append(npc_id)
         else:
-            cell.status = CellStatus.EMPTY
+            cell.status = CellStatus.EMPTY            
 
         # 아이템 / 효과 / 이벤트
         if random.random() < item_chance:

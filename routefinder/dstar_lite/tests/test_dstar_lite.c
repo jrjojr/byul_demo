@@ -12,7 +12,7 @@ static void test_dstar_lite_basic(void) {
         coord goal = coord_new_full(9, 9);
 
         map m = map_new_full(0, 0, MAP_NEIGHBOR_8);
-        dstar_lite dsl = dstar_lite_new_full(m,
+        dstar_lite dsl = dstar_lite_new_full(m,start,
             dstar_lite_cost, dstar_lite_heuristic, TRUE);
 
         dstar_lite_set_start(dsl, start);
@@ -39,7 +39,7 @@ static void test_dstar_lite_blocked_route(void) {
     coord goal = coord_new_full(9, 9);
 
     map m = map_new_full(10, 10, MAP_NEIGHBOR_8);
-    dstar_lite dsl = dstar_lite_new_full(m, 
+    dstar_lite dsl = dstar_lite_new_full(m, start,
         dstar_lite_cost, dstar_lite_heuristic, TRUE);
 
         dstar_lite_set_start(dsl, start);
@@ -68,7 +68,7 @@ static void test_dstar_lite_blocked_route_refind_ub1(void) {
     coord goal = coord_new_full(9, 9);
 
     map m = map_new_full(10, 10, MAP_NEIGHBOR_8);
-    dstar_lite dsl = dstar_lite_new_full(m, 
+    dstar_lite dsl = dstar_lite_new_full(m, start,
         dstar_lite_cost, dstar_lite_heuristic, TRUE);
 
                 dstar_lite_set_start(dsl, start);
@@ -118,7 +118,7 @@ static void test_dstar_lite_blocked_route_refind_ub2(void) {
     coord goal = coord_new_full(9, 9);
 
     map m = map_new_full(10, 10, MAP_NEIGHBOR_8);
-    dstar_lite dsl = dstar_lite_new_full(m, 
+    dstar_lite dsl = dstar_lite_new_full(m, start,
         dstar_lite_cost, dstar_lite_heuristic, TRUE);
 
         dstar_lite_set_start(dsl, start);
@@ -169,7 +169,7 @@ static void test_dstar_lite_blocked_route_refind_ub3(void) {
     coord goal = coord_new_full(9, 9);
 
     map m = map_new_full(10, 10, MAP_NEIGHBOR_8);
-    dstar_lite dsl = dstar_lite_new_full(m, 
+    dstar_lite dsl = dstar_lite_new_full(m, start,
         dstar_lite_cost, dstar_lite_heuristic, TRUE);
 
         dstar_lite_set_start(dsl, start);
@@ -220,7 +220,7 @@ static void test_dstar_lite_blocked_route_refind_ub4(void) {
     coord goal = coord_new_full(9, 9);
 
     map m = map_new_full(10, 10, MAP_NEIGHBOR_8);
-    dstar_lite dsl = dstar_lite_new_full(m, 
+    dstar_lite dsl = dstar_lite_new_full(m, start,
         dstar_lite_cost, dstar_lite_heuristic, TRUE);
 
         dstar_lite_set_start(dsl, start);
@@ -267,7 +267,7 @@ static void test_dstar_lite_blocked_route_refind_ub5(void) {
     coord goal = coord_new_full(9, 9);
 
     map m = map_new_full(10, 10, MAP_NEIGHBOR_8);
-    dstar_lite dsl = dstar_lite_new_full(m, 
+    dstar_lite dsl = dstar_lite_new_full(m, start,
         dstar_lite_cost, dstar_lite_heuristic, TRUE);
 
         dstar_lite_set_start(dsl, start);
@@ -348,7 +348,7 @@ static void test_dstar_lite_block_unblock_recover(void) {
     coord goal = coord_new_full(9, 9);
 
     map m = map_new_full(10, 10, MAP_NEIGHBOR_8);
-    dstar_lite dsl = dstar_lite_new_full(m, 
+    dstar_lite dsl = dstar_lite_new_full(m, start,
         dstar_lite_cost, dstar_lite_heuristic, TRUE);
 
         dstar_lite_set_start(dsl, start);
@@ -422,7 +422,7 @@ static void test_dstar_lite_find_loop(void) {
     coord goal = coord_new_full(9, 9);
 
     map m = map_new_full(10, 10, MAP_NEIGHBOR_8);
-    dstar_lite dsl = dstar_lite_new_full(m, 
+    dstar_lite dsl = dstar_lite_new_full(m, start,
         dstar_lite_cost, dstar_lite_heuristic, TRUE);
 
         dstar_lite_set_start(dsl, start);
@@ -546,7 +546,7 @@ static void test_dstar_lite_find_static(void) {
     coord goal = coord_new_full(9, 9);
 
     map m = map_new_full(10, 10, MAP_NEIGHBOR_8);
-    dstar_lite dsl = dstar_lite_new_full(m, 
+    dstar_lite dsl = dstar_lite_new_full(m, start,
         dstar_lite_cost, dstar_lite_heuristic, TRUE);
 
         dstar_lite_set_start(dsl, start);
@@ -626,7 +626,7 @@ static void test_dstar_lite_find_dynamic(void) {
     coord goal = coord_new_full(7, 6);
 
     map m = map_new_full(10, 10, MAP_NEIGHBOR_8);
-    dstar_lite dsl = dstar_lite_new_full(m, 
+    dstar_lite dsl = dstar_lite_new_full(m, start,
         dstar_lite_cost, dstar_lite_heuristic, TRUE);
 
         dstar_lite_set_start(dsl, start);
@@ -712,7 +712,7 @@ static void test_dstar_lite_block_all_around_start(void) {
     coord goal = coord_new_full(-9, -9);
 
     map m = map_new_full(0, 0, MAP_NEIGHBOR_8);
-    dstar_lite dsl = dstar_lite_new_full(m, 
+    dstar_lite dsl = dstar_lite_new_full(m, start,
         dstar_lite_cost, dstar_lite_heuristic, TRUE);
 
         dstar_lite_set_start(dsl, start);

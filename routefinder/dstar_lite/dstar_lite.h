@@ -170,7 +170,7 @@ BYUL_API dstar_lite dstar_lite_new(map m);
  * @return 새로 생성된 dstar_lite 객체. 
  *      사용 후 dstar_lite_free()로 해제 필요.
  */
-BYUL_API dstar_lite dstar_lite_new_full(map m, 
+BYUL_API dstar_lite dstar_lite_new_full(map m, coord start, 
     dsl_cost_func cost_fn, dsl_heuristic_func heuristic_fn,
     gboolean debug_mode_enabled);
 

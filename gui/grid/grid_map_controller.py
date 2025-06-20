@@ -1,4 +1,4 @@
-from PySide6.QtCore import Qt, QPoint, QObject, Slot, Signal
+from PySide6.QtCore import Qt, QPoint, QObject, Slot, Signal, QTimer
 
 from grid.grid_cell import GridCell, CellStatus, CellFlag, TerrainType
 from grid.grid_map import GridMap
@@ -37,18 +37,23 @@ class GridMapController(QObject):
         # 이미 self가 npc를 가지고 있으며 종료한다.
         if self.has_npc(npc_id):
             return 
-        
+
+        cell = self.get_cell(start)
+        if not cell:
+            g_logger.log_debug(f'왜 셀이 없지? add_npc 종료한다.')
+            return 
+
         npc = NPC(npc_id, self.grid_map, start, cell_size=self.parent.cell_size)
         self.npc_dict[npc_id] = npc
         npc.parent = self
         npc.anim_to_arrived.connect(lambda coord, n=npc: 
                                         self.on_anim_to_arrived(n, coord))
 
-        cell = self.get_cell(npc.start)
+        
         if cell.terrain not in npc.movable_terrain:
             npc.movable_terrain.append(cell.terrain)
 
-        self.place_npc(npc, npc.start)
+        self.place_npc_to_cell(npc, start)
 
         self.npc_added.emit(npc_id)
 
@@ -64,7 +69,7 @@ class GridMapController(QObject):
         # 현재 위치 기준 셀에서 npc 제거
         cell = self.get_cell(npc.start)
         if cell:
-            cell.remove_npc(npc_id)
+            cell.remove_npc_id(npc_id)
         else:
             g_logger.log_debug(
                 f'npc({npc_id})의 위치 셀을 찾을 수 없음: {npc.start}')
@@ -76,27 +81,102 @@ class GridMapController(QObject):
         self.npc_removed.emit(npc_id)
 
     def on_npc_spawn(self, block_key: c_coord):
-        """주어진 블락 내 셀에 포함된 npc_id 목록을 기준으로 
-        NPC를 생성하여 등록한다."""
         block = self.grid_map.block_cache.get(block_key)
-        if block:
-            for cell in block.cells.values():
-                for npc_id in cell.npc_ids:
-                    self.add_npc(npc_id, start=c_coord(cell.x, cell.y))
-                    g_logger.log_debug(f"[on_npc_spawn] NPC 생성됨: "
-                                    f"{npc_id} @ ({cell.x}, {cell.y})")
-        else:
-            g_logger.log_debug(f'키 {block_key}에 해당하는 block이 존재하지 않는다')
+        if not block:
+            return
+
+        # self._pending_npcs = []
+        pending_npcs = []
+        for cell in block.cells.values():
+            for npc_id in cell.npc_ids:
+                # self._pending_npcs.append((npc_id, c_coord(cell.x, cell.y)))
+                pending_npcs.append((npc_id, c_coord(cell.x, cell.y)))
+
+        # self._spawn_next_npc_batch()
+        self._spawn_npc_batch(pending_npcs)
+
+    # def _spawn_next_npc_batch(self, batch_size: int = 10):
+    #     count = 0
+    #     while self._pending_npcs and count < batch_size:
+    #         npc_id, coord = self._pending_npcs.pop(0)
+    #         self.add_npc(npc_id, start=coord)
+    #         count += 1
+
+    #     if self._pending_npcs:
+    #         QTimer.singleShot(2, lambda: self._spawn_next_npc_batch(batch_size))
+
+    def _spawn_npc_batch(self, pending_npcs: list[tuple[str, c_coord]], batch_size: int = 10):
+        if not pending_npcs:
+            return
+
+        def run_batch():
+            count = 0
+            while pending_npcs and count < batch_size:
+                npc_id, coord = pending_npcs.pop(0)
+                self.add_npc(npc_id, coord)
+                count += 1
+
+            if pending_npcs:
+                QTimer.singleShot(2, run_batch)
+
+        run_batch()
+
+    # def on_npc_evict(self, block_key: c_coord):
+    #     # self._pending_npc_removals = []
+    #     pending_npc_removals = []
+
+    #     for npc_id, npc in self.npc_dict.items():
+    #         if npc == self.parent.selected_npc:
+    #             self.parent.selected_npc = None
+    #         key_for_npc = self.grid_map.get_origin(npc.start.x, npc.start.y)
+    #         if key_for_npc == block_key:
+    #             # self._pending_npc_removals.append(npc_id)
+    #             self.pending_npc_removals.append(npc_id)                
+
+    #     self._evict_next_npc_batch()
+
+    # def _evict_next_npc_batch(self, batch_size: int = 10):
+    #     count = 0
+    #     while self._pending_npc_removals and count < batch_size:
+    #         npc_id = self._pending_npc_removals.pop(0)
+    #         self.remove_npc(npc_id)
+    #         g_logger.log_debug(f"[on_npc_evict:batch] NPC 제거됨: {npc_id}")
+    #         count += 1
+
+    #     if self._pending_npc_removals:
+    #         QTimer.singleShot(2, lambda: self._evict_next_npc_batch(batch_size))
 
     def on_npc_evict(self, block_key: c_coord):
-        """현재 해당 블락에 위치한 NPC만 찾아서 remove_npc로 제거한다."""
+        # 지역 리스트 생성 (공유 필드 대신)
+        pending_npc_removals = []
 
-        for npc_id, npc in list(self.npc_dict.items()):  # dict 크기 중간 변경 대비
-            npc_block = self.grid_map.coord_to_block(npc.start)
-            if npc_block == block_key:
+        for npc_id, npc in self.npc_dict.items():
+            if npc == self.parent.selected_npc:
+                self.parent.selected_npc = None
+
+            key_for_npc = self.grid_map.get_origin(npc.start.x, npc.start.y)
+            if key_for_npc == block_key:
+                pending_npc_removals.append(npc_id)
+
+        self._evict_npc_batch(pending_npc_removals)
+
+    def _evict_npc_batch(self, pending_npc_removals: list[str], 
+                        batch_size: int = 10):
+        if not pending_npc_removals:
+            return
+
+        def run_batch():
+            count = 0
+            while pending_npc_removals and count < batch_size:
+                npc_id = pending_npc_removals.pop(0)
                 self.remove_npc(npc_id)
-                g_logger.log_debug(
-                    f"[on_npc_evict] NPC 제거됨: {npc_id} @ block {block_key}")
+                g_logger.log_debug(f"[on_npc_evict:batch] NPC 제거됨: {npc_id}")
+                count += 1
+
+            if pending_npc_removals:
+                QTimer.singleShot(2, run_batch)
+
+        run_batch()
 
     def get_cell(self, coord: c_coord) -> GridCell:
         return self.grid_map.get(coord.x, coord.y)
@@ -163,7 +243,6 @@ class GridMapController(QObject):
             # 현재 terrain은 NPC가 통과 가능 → 새 장애물 생성
             self.add_obstacle(coord, npc)
 
-
     def set_start(self, npc: NPC, coord: c_coord):
         new_cell = self.get_cell(coord)
         if new_cell and npc.is_movable(new_cell):
@@ -173,7 +252,7 @@ class GridMapController(QObject):
             new_cell.add_flag(CellFlag.START)
             npc.start = coord
             npc.goal = coord
-            self.place_npc(npc)
+            self.place_npc_to_cell(npc)
         else:
             g_logger.log_always(f'{coord}는 npc가 이동할 수 없는 테란타입이다.')
 
@@ -224,11 +303,6 @@ class GridMapController(QObject):
             c = route.get_coord_at(i)
             if (cell := self.grid_map.get(c.x, c.y)):
                 cell.add_flag(CellFlag.ROUTE)
-                # cell.route_dir = route.get_direction_by_index(i)
-                if i < len(route)-1:
-                    cell.route_dir = calc_direction(c, route.get_coord_at(i+1))
-                else:
-                    cell.route_dir = calc_direction(route.get_coord_at(i-1), c)
         pass
 
     @Slot(NPC)
@@ -236,29 +310,23 @@ class GridMapController(QObject):
         if not npc.proto_queue.empty():
             g_logger.log_debug('to_proto_큐에 쌓인 경로를 가져온다.')            
             npc.on_proto_route_found()
-            
+
         route = npc.proto_route
         for i in range(len(route)):
             c = route.get_coord_at(i)
             if (cell := self.grid_map.get(c.x, c.y)):
                 cell.add_flag(CellFlag.ROUTE)
-                # cell.route_dir = route.get_direction_by_index(i)
-                if i < len(route)-1:
-                    cell.route_dir = calc_direction(c, route.get_coord_at(i+1))
-                else:
-                    cell.route_dir = calc_direction(route.get_coord_at(i-1), c)                    
-
         pass        
 
-    def place_npc(self, npc: NPC, coord:c_coord):
+    def place_npc_to_cell(self, npc: NPC, coord:c_coord):
         # npc가 기존에 있던 셀에서 제거한다.
         cell = self.get_cell(npc.start)
-        cell.remove_npc(npc.id)
+        cell.remove_npc_id(npc.id)
 
         # 새로운 위체의 셀에 npc를 추가한다.
         npc.start = coord
         cell = self.get_cell(coord)
-        cell.add_npc(npc.id)
+        cell.add_npc_id(npc.id)
 
         # 경로 제거
         if cell.has_flag(CellFlag.ROUTE):
@@ -270,14 +338,6 @@ class GridMapController(QObject):
 
     @Slot(c_coord)
     def on_anim_to_arrived(self, npc: NPC, coord: c_coord):
-        self.place_npc(npc, coord)
-
-        pass
-
-    @Slot(c_coord)
-    def on_move_to_started(self, npc: NPC, coord: c_coord):
-        next_cell = self.get_cell(coord)
-        next_cell.add(CellFlag.ROUTE)
-        next_cell.route_dir = calc_direction(npc.start, coord)
+        self.place_npc_to_cell(npc, coord)
 
         pass
